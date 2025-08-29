@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import Header from '../components/Header';
 import { colors, commonStyles } from '../styles/commonStyles';
 import StatButton from '../components/StatButton';
@@ -24,6 +24,7 @@ export default function GameScreen() {
     saveToHistory,
   } = useGame();
 
+  const { width } = useWindowDimensions();
   const [sheetOpen, setSheetOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -44,6 +45,12 @@ export default function GameScreen() {
       resetCurrentGame();
       router.push('/history');
     }
+  };
+
+  const getTileWidth = (playersCount: number) => {
+    // Single column on very small screens or when there are many players
+    if (width < 360 || playersCount > 16) return '100%';
+    return '48%';
   };
 
   return (
@@ -125,15 +132,25 @@ export default function GameScreen() {
               <Text style={styles.groupTitle}>{game.home.name}</Text>
               <View style={styles.grid}>
                 {game.home.players.map((p) => (
-                  <View key={`home-${p.number}`} style={styles.playerTile}>
+                  <View
+                    key={`home-${p.number}`}
+                    style={[
+                      styles.playerTile,
+                      { width: getTileWidth(game.home.players.length) },
+                    ]}
+                  >
                     <StatButton
                       label={`#${p.number} Shots`}
                       onPress={() => incrementPlayerShot('home', p.number, 1)}
                       color={colors.blue}
                       count={p.shots}
-                      style={{ minWidth: 140 }}
+                      style={{ width: '100%' }}
                     />
-                    <View style={styles.inlineRow}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.inlineRow}
+                    >
                       <StatButton
                         label="FO+"
                         onPress={() => incrementPlayerFaceoff('home', p.number, 1)}
@@ -152,7 +169,7 @@ export default function GameScreen() {
                         color={colors.softRed}
                         style={styles.smallBtn}
                       />
-                    </View>
+                    </ScrollView>
                     <Text style={styles.tileStats}>
                       S:{p.shots} | FO:{p.faceoffsWon} | +/-:{p.plusMinus}
                     </Text>
@@ -164,15 +181,25 @@ export default function GameScreen() {
               <Text style={styles.groupTitle}>{game.away.name}</Text>
               <View style={styles.grid}>
                 {game.away.players.map((p) => (
-                  <View key={`away-${p.number}`} style={styles.playerTile}>
+                  <View
+                    key={`away-${p.number}`}
+                    style={[
+                      styles.playerTile,
+                      { width: getTileWidth(game.away.players.length) },
+                    ]}
+                  >
                     <StatButton
                       label={`#${p.number} Shots`}
                       onPress={() => incrementPlayerShot('away', p.number, 1)}
                       color={colors.red}
                       count={p.shots}
-                      style={{ minWidth: 140 }}
+                      style={{ width: '100%' }}
                     />
-                    <View style={styles.inlineRow}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.inlineRow}
+                    >
                       <StatButton
                         label="FO+"
                         onPress={() => incrementPlayerFaceoff('away', p.number, 1)}
@@ -191,7 +218,7 @@ export default function GameScreen() {
                         color={colors.softRed}
                         style={styles.smallBtn}
                       />
-                    </View>
+                    </ScrollView>
                     <Text style={styles.tileStats}>
                       S:{p.shots} | FO:{p.faceoffsWon} | +/-:{p.plusMinus}
                     </Text>
@@ -259,13 +286,19 @@ const styles = StyleSheet.create({
   playersGrid: {
     gap: 8,
   },
+  groupTitle: {
+    fontFamily: 'Fredoka_700Bold',
+    color: colors.text,
+    fontSize: 18,
+    marginTop: 6,
+    marginBottom: 4,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
   playerTile: {
-    width: '48%',
     backgroundColor: colors.offWhite,
     borderWidth: 2,
     borderColor: colors.outline,
@@ -277,11 +310,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     flexDirection: 'row',
     gap: 8,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    paddingRight: 6,
   },
   smallBtn: {
     minHeight: 60,
-    flex: 1,
+    width: 110,
   },
   tileStats: {
     marginTop: 8,
