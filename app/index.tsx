@@ -1,61 +1,38 @@
-import { Text, View, Image, SafeAreaView } from 'react-native';
-import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
-import Button from '../components/Button';
-import { commonStyles, buttonStyles } from '../styles/commonStyles';
 
-// Declare the window properties we're using
-declare global {
-  interface Window {
-    handleInstallClick: () => void;
-    canInstall: boolean;
-  }
-}
+import { View, Text, Image } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import Button from '../components/Button';
+import { commonStyles, buttonStyles, colors } from '../styles/commonStyles';
 
 export default function MainScreen() {
-  const [canInstall, setCanInstall] = useState(false);
-
   useEffect(() => {
-    // Initial check
-    setCanInstall(false);
-
-    // Set up polling interval
-    const intervalId = setInterval(() => {
-      if(window.canInstall) {
-        setCanInstall(true);
-        clearInterval(intervalId);
-      }
-    }, 500);
-
-    // Cleanup
-    return () => {
-      clearInterval(intervalId);
-    };
+    console.log('Home mounted');
   }, []);
 
   return (
     <View style={commonStyles.container}>
-      <View style={commonStyles.content}>
+      <View style={[commonStyles.content, { gap: 12 }]}>
         <Image
           source={require('../assets/images/final_quest_240x240.png')}
-          style={{ width: 180, height: 180 }}
+          style={{ width: 160, height: 160, borderRadius: 36, borderWidth: 3, borderColor: colors.white }}
           resizeMode="contain"
         />
-        <Text style={commonStyles.title}>This is a placeholder app.</Text>
-        <Text style={commonStyles.text}>Your app will be displayed here when it's ready.</Text>
-        <View style={commonStyles.buttonContainer}>
-          {canInstall && (
-            <Button
-              text="Install App"
-              onPress={() => {
-                if(window.handleInstallClick) {
-                  window.handleInstallClick();
-                  setCanInstall(false); // Update state after installation
-                }
-              }}
-              style={buttonStyles.instructionsButton}
-            />
-          )}
+        <Text style={commonStyles.title}>Rink Rumble Stats</Text>
+        <Text style={commonStyles.subtitle}>Big bumpy buttons. Simple tracking.</Text>
+
+        <View style={{ width: '100%', maxWidth: 500 }}>
+          <Button
+            text="Start New Game"
+            onPress={() => router.push('/game')}
+            accessibilityLabel="Start a new game"
+          />
+          <Button
+            text="View History"
+            onPress={() => router.push('/history')}
+            style={{ backgroundColor: colors.red }}
+            accessibilityLabel="View past games"
+          />
         </View>
       </View>
     </View>
