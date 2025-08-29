@@ -7,7 +7,9 @@ import { colors } from '../styles/commonStyles';
 interface DoughnutChartProps {
   size?: number;
   strokeWidth?: number;
-  progress: number; // 0..1
+  // If shots is provided, progress is computed as shots / 100 (1 shot = 1%)
+  shots?: number;
+  progress?: number; // 0..1, optional fallback
   label?: string;
   color?: string;
 }
@@ -15,13 +17,21 @@ interface DoughnutChartProps {
 export default function DoughnutChart({
   size = 120,
   strokeWidth = 16,
+  shots,
   progress,
   label = '',
   color = colors.red,
 }: DoughnutChartProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const progressStroke = circumference * progress;
+
+  const computedProgress = (() => {
+    const base = typeof shots === 'number' ? shots / 100 : (typeof progress === 'number' ? progress : 0);
+    const clamped = Math.max(0, Math.min(1, base));
+    return clamped;
+  })();
+
+  const progressStroke = circumference * computedProgress;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -49,7 +59,7 @@ export default function DoughnutChart({
         />
       </Svg>
       <View style={styles.center}>
-        <Text style={styles.centerText}>{Math.round(progress * 100)}%</Text>
+        <Text style={styles.centerText}>{Math.round(computedProgress * 100)}%</Text>
         {label ? <Text style={styles.centerLabel}>{label}</Text> : null}
       </View>
     </View>

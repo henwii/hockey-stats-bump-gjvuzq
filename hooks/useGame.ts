@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Game, Mode, PlayerStat, TeamStats } from '../types';
 
@@ -119,15 +119,6 @@ export function useGame() {
     }
   };
 
-  const shotsTarget = 30;
-  const teamProgress = useMemo(() => {
-    return {
-      home: Math.min(1, game.home.shots / shotsTarget),
-      away: Math.min(1, game.away.shots / shotsTarget),
-      target: shotsTarget,
-    };
-  }, [game.home.shots, game.away.shots]);
-
   return {
     game,
     loading,
@@ -140,7 +131,6 @@ export function useGame() {
     setPlayerNumbers,
     resetCurrentGame,
     saveToHistory,
-    teamProgress,
   };
 }
 

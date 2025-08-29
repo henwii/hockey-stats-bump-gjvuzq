@@ -22,7 +22,6 @@ export default function GameScreen() {
     incrementPlayerPlusMinus,
     resetCurrentGame,
     saveToHistory,
-    teamProgress,
   } = useGame();
 
   const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -66,8 +65,8 @@ export default function GameScreen() {
           <View style={[styles.teamCard, { borderColor: colors.blue }]}>
             <Text style={styles.teamName}>{game.home.name}</Text>
             <DoughnutChart
-              progress={teamProgress.home}
-              label={`${game.home.shots}/${teamProgress.target}`}
+              shots={game.home.shots}
+              label={`${game.home.shots}/100`}
               color={colors.blue}
             />
             {game.mode === 'team' ? (
@@ -92,8 +91,8 @@ export default function GameScreen() {
           <View style={[styles.teamCard, { borderColor: colors.red }]}>
             <Text style={styles.teamName}>{game.away.name}</Text>
             <DoughnutChart
-              progress={teamProgress.away}
-              label={`${game.away.shots}/${teamProgress.target}`}
+              shots={game.away.shots}
+              label={`${game.away.shots}/100`}
               color={colors.red}
             />
             {game.mode === 'team' ? (
