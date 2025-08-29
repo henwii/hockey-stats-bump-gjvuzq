@@ -48,8 +48,14 @@ export default function GameScreen() {
   };
 
   const getTileWidth = (playersCount: number) => {
-    // Single column on very small screens or when there are many players
-    if (width < 360 || playersCount > 16) return '100%';
+    // Responsive columns: more players => more columns (smaller tiles)
+    // On small screens keep at least 2 columns.
+    let columns = 2;
+    if (playersCount >= 20) columns = 4;
+    else if (playersCount >= 12) columns = 3;
+    if (width < 360) columns = Math.max(2, columns - 1);
+    if (columns === 4) return '23%';
+    if (columns === 3) return '31%';
     return '48%';
   };
 
@@ -144,32 +150,32 @@ export default function GameScreen() {
                       onPress={() => incrementPlayerShot('home', p.number, 1)}
                       color={colors.blue}
                       count={p.shots}
-                      style={{ width: '100%' }}
+                      style={styles.shotsBtn}
+                      textStyle={{ fontSize: 20 }}
                     />
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.inlineRow}
-                    >
+                    <View style={styles.actionRow}>
                       <StatButton
                         label="FO+"
                         onPress={() => incrementPlayerFaceoff('home', p.number, 1)}
                         color={colors.yellow}
                         style={styles.smallBtn}
+                        textStyle={{ fontSize: 16 }}
                       />
                       <StatButton
                         label="+1"
                         onPress={() => incrementPlayerPlusMinus('home', p.number, 1)}
                         color={colors.green}
                         style={styles.smallBtn}
+                        textStyle={{ fontSize: 16 }}
                       />
                       <StatButton
                         label="-1"
                         onPress={() => incrementPlayerPlusMinus('home', p.number, -1)}
                         color={colors.softRed}
                         style={styles.smallBtn}
+                        textStyle={{ fontSize: 16 }}
                       />
-                    </ScrollView>
+                    </View>
                     <Text style={styles.tileStats}>
                       S:{p.shots} | FO:{p.faceoffsWon} | +/-:{p.plusMinus}
                     </Text>
@@ -193,32 +199,32 @@ export default function GameScreen() {
                       onPress={() => incrementPlayerShot('away', p.number, 1)}
                       color={colors.red}
                       count={p.shots}
-                      style={{ width: '100%' }}
+                      style={styles.shotsBtn}
+                      textStyle={{ fontSize: 20 }}
                     />
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.inlineRow}
-                    >
+                    <View style={styles.actionRow}>
                       <StatButton
                         label="FO+"
                         onPress={() => incrementPlayerFaceoff('away', p.number, 1)}
                         color={colors.yellow}
                         style={styles.smallBtn}
+                        textStyle={{ fontSize: 16 }}
                       />
                       <StatButton
                         label="+1"
                         onPress={() => incrementPlayerPlusMinus('away', p.number, 1)}
                         color={colors.green}
                         style={styles.smallBtn}
+                        textStyle={{ fontSize: 16 }}
                       />
                       <StatButton
                         label="-1"
                         onPress={() => incrementPlayerPlusMinus('away', p.number, -1)}
                         color={colors.softRed}
                         style={styles.smallBtn}
+                        textStyle={{ fontSize: 16 }}
                       />
-                    </ScrollView>
+                    </View>
                     <Text style={styles.tileStats}>
                       S:{p.shots} | FO:{p.faceoffsWon} | +/-:{p.plusMinus}
                     </Text>
@@ -305,20 +311,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 10,
     boxShadow: '0px 6px 0px ' + colors.outline,
+    gap: 8,
   },
-  inlineRow: {
-    marginTop: 8,
+  actionRow: {
     flexDirection: 'row',
     gap: 8,
-    justifyContent: 'flex-start',
-    paddingRight: 6,
+    width: '100%',
   },
   smallBtn: {
-    minHeight: 60,
-    width: 110,
+    flex: 1,
+    minHeight: 48,
+    paddingVertical: 8,
+  },
+  shotsBtn: {
+    width: '100%',
+    minHeight: 64,
+    paddingVertical: 10,
   },
   tileStats: {
-    marginTop: 8,
+    marginTop: 2,
     fontFamily: 'Fredoka_500Medium',
     color: colors.muted,
   },
