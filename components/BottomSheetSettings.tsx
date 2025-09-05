@@ -4,6 +4,7 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { View, Text, StyleSheet, TextInput, Switch } from 'react-native';
 import { colors } from '../styles/commonStyles';
 import Button from './Button';
+import { router } from 'expo-router';
 
 interface BottomSheetSettingsProps {
   open: boolean;
@@ -13,9 +14,8 @@ interface BottomSheetSettingsProps {
   mode: 'team' | 'players';
   onToggleMode: (mode: 'team' | 'players') => void;
   onOpenPlayerSetup: () => void;
-  goalies: string[];
-  selectedGoalie: number;
-  onGoalieChange: (goalies: string[], selected: number) => void;
+  goalieCount: number;
+  onGoalieCountChange: (count: number) => void;
 }
 
 export default function BottomSheetSettings({
@@ -26,15 +26,13 @@ export default function BottomSheetSettings({
   mode,
   onToggleMode,
   onOpenPlayerSetup,
-  goalies,
-  selectedGoalie,
-  onGoalieChange
+  goalieCount,
+  onGoalieCountChange
 }: BottomSheetSettingsProps) {
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['40%', '70%'], []);
 
-  const [localGoalies, setLocalGoalies] = React.useState(goalies);
-  const [localSelectedGoalie, setLocalSelectedGoalie] = React.useState(selectedGoalie);
+  const [localGoalieCount, setLocalGoalieCount] = React.useState(String(goalieCount));
 
   React.useEffect(() => {
     if (open) {
@@ -45,20 +43,20 @@ export default function BottomSheetSettings({
   }, [open]);
 
   React.useEffect(() => {
-    setLocalGoalies(goalies);
-    setLocalSelectedGoalie(selectedGoalie);
-  }, [goalies, selectedGoalie]);
+    setLocalGoalieCount(String(goalieCount));
+  }, [goalieCount]);
 
-  const updateGoalie = (index: number, name: string) => {
-    const newGoalies = [...localGoalies];
-    newGoalies[index] = name;
-    setLocalGoalies(newGoalies);
-    onGoalieChange(newGoalies, localSelectedGoalie);
+  const handleGoalieCountChange = (text: string) => {
+    setLocalGoalieCount(text);
+    const count = parseInt(text);
+    if (!isNaN(count) && count >= 1 && count <= 5) {
+      onGoalieCountChange(count);
+    }
   };
 
-  const selectGoalie = (index: number) => {
-    setLocalSelectedGoalie(index);
-    onGoalieChange(localGoalies, index);
+  const handleOpenGoalieSetup = () => {
+    onClose();
+    router.push('/goalie-setup');
   };
 
   const renderContent = useCallback(() => {
@@ -80,59 +78,60 @@ export default function BottomSheetSettings({
           </View>
         </View>
 
-        <View style={styles.row}>
-          <Text style={styles.label}>Home</Text>
-          <TextInput
-            placeholder="Home name"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            value={teamNames.home}
-            onChangeText={(t) => onChangeNames({ ...teamNames, home: t })}
-          />
-        </View>
-
         {mode === 'team' && (
-          <View style={styles.row}>
-            <Text style={styles.label}>Away</Text>
-            <TextInput
-              placeholder="Away name"
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              value={teamNames.away}
-              onChangeText={(t) => onChangeNames({ ...teamNames, away: t })}
-            />
-          </View>
+          <>
+            <View style={styles.row}>
+              <Text style={styles.label}>Home</Text>
+              <TextInput
+                placeholder="Home name"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                value={teamNames.home}
+                onChangeText={(t) => onChangeNames({ ...teamNames, home: t })}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.label}>Away</Text>
+              <TextInput
+                placeholder="Away name"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                value={teamNames.away}
+                onChangeText={(t) => onChangeNames({ ...teamNames, away: t })}
+              />
+            </View>
+          </>
         )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Goalies</Text>
-          {localGoalies.map((goalie, index) => (
-            <View key={index} style={styles.goalieRow}>
-              <Button
-                text={localSelectedGoalie === index ? '●' : '○'}
-                onPress={() => selectGoalie(index)}
-                style={[
-                  styles.goalieSelectBtn,
-                  { backgroundColor: localSelectedGoalie === index ? colors.green : colors.muted }
-                ]}
-                textStyle={{ fontSize: 16 }}
-              />
-              <TextInput
-                placeholder={`Goalie ${index + 1}`}
-                placeholderTextColor={colors.muted}
-                style={[styles.input, { flex: 1 }]}
-                value={goalie}
-                onChangeText={(text) => updateGoalie(index, text)}
-              />
-            </View>
-          ))}
+          <View style={styles.row}>
+            <Text style={styles.label}>Count</Text>
+            <TextInput
+              placeholder="Number of goalies (1-5)"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={localGoalieCount}
+              onChangeText={handleGoalieCountChange}
+              keyboardType="numeric"
+            />
+          </View>
+          <Text style={styles.helperText}>
+            Set the number of goalies (1-5). You can choose which goalie gets shots in the game screen.
+          </Text>
         </View>
 
         <Button text="Configure Player Numbers" onPress={onOpenPlayerSetup} />
+        <Button 
+          text="Configure Goalie Names" 
+          onPress={handleOpenGoalieSetup}
+          style={{ backgroundColor: colors.yellow }}
+        />
         <Button text="Close" onPress={onClose} style={{ backgroundColor: colors.red }} />
       </BottomSheetView>
     );
-  }, [teamNames, onChangeNames, onClose, mode, onToggleMode, onOpenPlayerSetup, localGoalies, localSelectedGoalie]);
+  }, [teamNames, onChangeNames, onClose, mode, onToggleMode, onOpenPlayerSetup, localGoalieCount]);
 
   return (
     <BottomSheet
@@ -209,16 +208,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 4,
   },
-  goalieRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  goalieSelectBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  helperText: {
+    color: colors.white,
+    fontFamily: 'Fredoka_400Regular',
+    fontSize: 12,
+    opacity: 0.8,
+    fontStyle: 'italic',
   },
 });

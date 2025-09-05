@@ -1,8 +1,7 @@
 
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Game, Mode, PlayerStat, TeamStats, PeriodStats } from '../types';
+import { Game, Mode, PlayerStat, TeamStats, PeriodStats, GoalieStat } from '../types';
 
 const CURRENT_GAME_KEY = 'current_game';
 const HISTORY_KEY = 'games_history';
@@ -17,11 +16,17 @@ const defaultPlayers = (count = 12): PlayerStat[] =>
     minus: 0,
   }));
 
+const defaultGoalies = (count = 2): GoalieStat[] =>
+  Array.from({ length: count }).map((_, i) => ({
+    name: `Goalie ${i + 1}`,
+    shotsAgainst: 0,
+  }));
+
 const emptyTeamStats = (name: string): TeamStats => ({
   name,
   shots: 0,
   players: defaultPlayers(),
-  goalies: ['Goalie 1', 'Goalie 2', 'Goalie 3'],
+  goalies: defaultGoalies(),
   selectedGoalie: 0,
 });
 
@@ -59,13 +64,24 @@ export function useGame() {
         if (!parsed.selectedPlayer) parsed.selectedPlayer = null;
         if (parsed.shiftMode === undefined) parsed.shiftMode = false;
         if (!parsed.periodStats) parsed.periodStats = {};
-        if (!parsed.home.goalies) {
-          parsed.home.goalies = ['Goalie 1', 'Goalie 2', 'Goalie 3'];
-          parsed.home.selectedGoalie = 0;
+        
+        // Migrate old goalie format to new format
+        if (!parsed.home.goalies || typeof parsed.home.goalies[0] === 'string') {
+          const oldGoalies = parsed.home.goalies as any[] || ['Goalie 1', 'Goalie 2'];
+          parsed.home.goalies = oldGoalies.map((name, index) => ({
+            name: typeof name === 'string' ? name : `Goalie ${index + 1}`,
+            shotsAgainst: 0,
+          }));
+          parsed.home.selectedGoalie = parsed.home.selectedGoalie || 0;
         }
-        if (parsed.away && !parsed.away.goalies) {
-          parsed.away.goalies = ['Goalie 1', 'Goalie 2', 'Goalie 3'];
-          parsed.away.selectedGoalie = 0;
+        
+        if (parsed.away && (!parsed.away.goalies || typeof parsed.away.goalies[0] === 'string')) {
+          const oldGoalies = parsed.away.goalies as any[] || ['Goalie 1', 'Goalie 2'];
+          parsed.away.goalies = oldGoalies.map((name, index) => ({
+            name: typeof name === 'string' ? name : `Goalie ${index + 1}`,
+            shotsAgainst: 0,
+          }));
+          parsed.away.selectedGoalie = parsed.away.selectedGoalie || 0;
         }
         
         // Migrate old player stats to new format
@@ -132,72 +148,67 @@ export function useGame() {
   };
 
   const nextPeriod = () => {
-    Alert.alert(
-      "Confirm",
-      "Are you sure you want to start the next period? This will reset all counters.",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Yes",
-          onPress: () => {
-            console.log('Starting next period');
-            // Save current period stats first
-            setGame((g) => {
-              const periodStats: PeriodStats = {
-                teamStats: {
-                  home: { ...g.home },
-                  away: g.away ? { ...g.away } : undefined,
-                },
-                playerStats: {},
-              };
-
-              // Save player stats for current period
-              g.home.players.forEach(player => {
-                periodStats.playerStats[player.number] = { ...player };
-              });
-
-              if (g.away) {
-                g.away.players.forEach(player => {
-                  periodStats.playerStats[`away_${player.number}`] = { ...player };
-                });
-              }
-
-              // Reset counters for the new period
-              const resetPlayerStats = (players: PlayerStat[]): PlayerStat[] =>
-                players.map(p => ({
-                  ...p,
-                  shots: 0,
-                  faceOffWins: 0,
-                  faceOffLosses: 0,
-                  plus: 0,
-                  minus: 0,
-                }));
-
-              return {
-                ...g,
-                period: g.period + 1,
-                periodStats: {
-                  ...g.periodStats,
-                  [g.period]: periodStats,
-                },
-                home: {
-                  ...g.home,
-                  shots: 0,
-                  players: resetPlayerStats(g.home.players),
-                },
-                away: g.away ? {
-                  ...g.away,
-                  shots: 0,
-                  players: resetPlayerStats(g.away.players),
-                } : undefined,
-                selectedPlayer: null,
-              };
-            });
-          },
+    console.log('Starting next period');
+    // Save current period stats first
+    setGame((g) => {
+      const periodStats: PeriodStats = {
+        teamStats: {
+          home: { ...g.home },
+          away: g.away ? { ...g.away } : undefined,
         },
-      ],
-      { cancelable: false }
-    );
+        playerStats: {},
+      };
+
+      // Save player stats for current period
+      g.home.players.forEach(player => {
+        periodStats.playerStats[player.number] = { ...player };
+      });
+
+      if (g.away) {
+        g.away.players.forEach(player => {
+          periodStats.playerStats[`away_${player.number}`] = { ...player };
+        });
+      }
+
+      // Reset counters for the new period
+      const resetPlayerStats = (players: PlayerStat[]): PlayerStat[] =>
+        players.map(p => ({
+          ...p,
+          shots: 0,
+          faceOffWins: 0,
+          faceOffLosses: 0,
+          plus: 0,
+          minus: 0,
+        }));
+
+      const resetGoalieStats = (goalies: GoalieStat[]): GoalieStat[] =>
+        goalies.map(g => ({
+          ...g,
+          shotsAgainst: 0,
+        }));
+
+      return {
+        ...g,
+        period: g.period + 1,
+        periodStats: {
+          ...g.periodStats,
+          [g.period]: periodStats,
+        },
+        home: {
+          ...g.home,
+          shots: 0,
+          players: resetPlayerStats(g.home.players),
+          goalies: resetGoalieStats(g.home.goalies),
+        },
+        away: g.away ? {
+          ...g.away,
+          shots: 0,
+          players: resetPlayerStats(g.away.players),
+          goalies: resetGoalieStats(g.away.goalies),
+        } : undefined,
+        selectedPlayer: null,
+      };
+    });
   };
 
   const setTeamNames = (home: string, away?: string) =>
@@ -214,7 +225,18 @@ export function useGame() {
     });
 
   const incrementTeamShots = (team: 'home' | 'away', delta = 1) =>
-    applyToTeam(team, (t) => ({ ...t, shots: Math.max(0, t.shots + delta) }));
+    applyToTeam(team, (t) => {
+      const newShots = Math.max(0, t.shots + delta);
+      // Also increment shots against for selected goalie
+      const updatedGoalies = [...t.goalies];
+      if (t.selectedGoalie !== null && updatedGoalies[t.selectedGoalie]) {
+        updatedGoalies[t.selectedGoalie] = {
+          ...updatedGoalies[t.selectedGoalie],
+          shotsAgainst: Math.max(0, updatedGoalies[t.selectedGoalie].shotsAgainst + delta),
+        };
+      }
+      return { ...t, shots: newShots, goalies: updatedGoalies };
+    });
 
   const findPlayerIndex = (t: TeamStats, number: string) => t.players.findIndex((p) => p.number === number);
 
@@ -233,10 +255,42 @@ export function useGame() {
 
   const incrementPlayerStat = (team: 'home' | 'away', number: string, statName: keyof PlayerStat, delta = 1) => {
     const actualDelta = game.shiftMode ? -delta : delta;
-    updatePlayer(team, number, (p) => ({
-      ...p,
-      [statName]: Math.max(0, (p[statName] as number) + actualDelta),
-    }));
+    console.log(`Incrementing ${statName} for player ${number} on team ${team} by ${actualDelta}`);
+    
+    updatePlayer(team, number, (p) => {
+      const newStat = Math.max(0, (p[statName] as number) + actualDelta);
+      
+      // If it's a shot, also increment shots against for selected goalie
+      if (statName === 'shots' && actualDelta > 0) {
+        console.log(`Shot recorded, updating goalie stats for team ${team}`);
+        setGame((g) => {
+          const teamData = team === 'home' ? g.home : g.away;
+          if (!teamData) return g;
+          
+          const updatedGoalies = [...teamData.goalies];
+          if (teamData.selectedGoalie !== null && updatedGoalies[teamData.selectedGoalie]) {
+            console.log(`Updating shots against for goalie ${teamData.selectedGoalie}: ${updatedGoalies[teamData.selectedGoalie].shotsAgainst} + ${actualDelta}`);
+            updatedGoalies[teamData.selectedGoalie] = {
+              ...updatedGoalies[teamData.selectedGoalie],
+              shotsAgainst: updatedGoalies[teamData.selectedGoalie].shotsAgainst + actualDelta,
+            };
+          }
+          
+          return {
+            ...g,
+            [team]: {
+              ...teamData,
+              goalies: updatedGoalies,
+            }
+          };
+        });
+      }
+      
+      return {
+        ...p,
+        [statName]: newStat,
+      };
+    });
   };
 
   const setPlayerNumbers = (team: 'home' | 'away', numbers: string[]) =>
@@ -268,8 +322,53 @@ export function useGame() {
     setGame((g) => ({ ...g, shiftMode: !g.shiftMode }));
   };
 
-  const setGoalies = (team: 'home' | 'away', goalies: string[]) =>
-    applyToTeam(team, (t) => ({ ...t, goalies: goalies.slice(0, 3) }));
+  const setGoalieCount = (team: 'home' | 'away', count: number) => {
+    const clampedCount = Math.max(1, Math.min(5, count)); // Allow 1-5 goalies
+    applyToTeam(team, (t) => {
+      const currentGoalies = [...t.goalies];
+      const newGoalies: GoalieStat[] = [];
+      
+      for (let i = 0; i < clampedCount; i++) {
+        if (currentGoalies[i]) {
+          newGoalies.push(currentGoalies[i]);
+        } else {
+          newGoalies.push({
+            name: `Goalie ${i + 1}`,
+            shotsAgainst: 0,
+          });
+        }
+      }
+      
+      // Adjust selected goalie if necessary
+      const newSelectedGoalie = t.selectedGoalie !== null && t.selectedGoalie < clampedCount 
+        ? t.selectedGoalie 
+        : 0;
+      
+      return { ...t, goalies: newGoalies, selectedGoalie: newSelectedGoalie };
+    });
+  };
+
+  const updateGoalieName = (team: 'home' | 'away', index: number, name: string) => {
+    console.log(`Updating goalie name for team ${team}, index ${index}, name: ${name}`);
+    setGame((g) => {
+      const teamData = team === 'home' ? g.home : g.away;
+      if (!teamData) return g;
+      
+      const updatedGoalies = [...teamData.goalies];
+      if (updatedGoalies[index]) {
+        updatedGoalies[index] = { ...updatedGoalies[index], name };
+        console.log(`Updated goalie ${index} name to: ${name}`);
+      }
+      
+      return {
+        ...g,
+        [team]: {
+          ...teamData,
+          goalies: updatedGoalies,
+        }
+      };
+    });
+  };
 
   const selectGoalie = (team: 'home' | 'away', goalieIndex: number) =>
     applyToTeam(team, (t) => ({ ...t, selectedGoalie: goalieIndex }));
@@ -294,78 +393,50 @@ export function useGame() {
   };
 
   const resetCurrentGame = () => {
-    Alert.alert(
-      "Confirm",
-      "Are you sure you want to reset the current game? All progress will be lost.",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Yes",
-          onPress: () => {
-            console.log('Resetting current game');
-            setGame(emptyGame());
-          },
-        },
-      ],
-      { cancelable: false }
-    );
+    console.log('Resetting current game');
+    setGame(emptyGame());
   };
 
   const saveToHistory = async () => {
-    return new Promise<boolean>((resolve) => {
-      Alert.alert(
-        "Confirm",
-        "Are you sure you want to end and save the game?",
-        [
-          { text: "No", style: "cancel", onPress: () => resolve(false) },
-          {
-            text: "Yes",
-            onPress: async () => {
-              try {
-                console.log('Saving game to history');
-                // Save current period stats before saving to history
-                const gameToSave = { ...game };
-                
-                // Save current period stats
-                const periodStats: PeriodStats = {
-                  teamStats: {
-                    home: { ...gameToSave.home },
-                    away: gameToSave.away ? { ...gameToSave.away } : undefined,
-                  },
-                  playerStats: {},
-                };
+    try {
+      console.log('Saving game to history');
+      // Save current period stats before saving to history
+      const gameToSave = { ...game };
+      
+      // Save current period stats
+      const periodStats: PeriodStats = {
+        teamStats: {
+          home: { ...gameToSave.home },
+          away: gameToSave.away ? { ...gameToSave.away } : undefined,
+        },
+        playerStats: {},
+      };
 
-                gameToSave.home.players.forEach(player => {
-                  periodStats.playerStats[player.number] = { ...player };
-                });
+      gameToSave.home.players.forEach(player => {
+        periodStats.playerStats[player.number] = { ...player };
+      });
 
-                if (gameToSave.away) {
-                  gameToSave.away.players.forEach(player => {
-                    periodStats.playerStats[`away_${player.number}`] = { ...player };
-                  });
-                }
+      if (gameToSave.away) {
+        gameToSave.away.players.forEach(player => {
+          periodStats.playerStats[`away_${player.number}`] = { ...player };
+        });
+      }
 
-                gameToSave.periodStats = {
-                  ...gameToSave.periodStats,
-                  [gameToSave.period]: periodStats,
-                };
-                
-                const stored = await AsyncStorage.getItem(HISTORY_KEY);
-                const history: Game[] = stored ? JSON.parse(stored) : [];
-                const newHistory = [gameToSave, ...history].slice(0, 20);
-                await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
-                console.log('Game saved to history successfully');
-                resolve(true);
-              } catch (e) {
-                console.error('Failed to save history:', e);
-                resolve(false);
-              }
-            },
-          },
-        ],
-        { cancelable: false }
-      );
-    });
+      gameToSave.periodStats = {
+        ...gameToSave.periodStats,
+        [gameToSave.period]: periodStats,
+      };
+      
+      const stored = await AsyncStorage.getItem(HISTORY_KEY);
+      const history: Game[] = stored ? JSON.parse(stored) : [];
+      const newHistory = [gameToSave, ...history].slice(0, 20);
+      await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+      console.log('Game saved to history successfully');
+      return true;
+    } catch (e) {
+      console.error('Failed to save history:', e);
+      return false;
+    }
   };
 
   const deleteFromHistory = async (gameId: string) => {
@@ -392,7 +463,8 @@ export function useGame() {
     setPlayerNumbers,
     setSelectedPlayer,
     toggleShiftMode,
-    setGoalies,
+    setGoalieCount,
+    updateGoalieName,
     selectGoalie,
     getTotalShotsForPeriod,
     resetCurrentGame,
@@ -412,31 +484,16 @@ export async function getHistory(): Promise<Game[]> {
 }
 
 export async function deleteGameFromHistory(gameId: string): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    Alert.alert(
-      "Confirm",
-      "Are you sure you want to delete this game?",
-      [
-        { text: "No", style: "cancel", onPress: () => resolve(false) },
-        {
-          text: "Yes",
-          onPress: async () => {
-            try {
-              console.log('Deleting game from history:', gameId);
-              const stored = await AsyncStorage.getItem(HISTORY_KEY);
-              const history: Game[] = stored ? JSON.parse(stored) : [];
-              const newHistory = history.filter(g => g.id !== gameId);
-              await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
-              console.log('Game deleted from history successfully');
-              resolve(true);
-            } catch (e) {
-              console.error('Failed to delete from history:', e);
-              resolve(false);
-            }
-          },
-        },
-      ],
-      { cancelable: false }
-    );
-  });
+  try {
+    console.log('Deleting game from history:', gameId);
+    const stored = await AsyncStorage.getItem(HISTORY_KEY);
+    const history: Game[] = stored ? JSON.parse(stored) : [];
+    const newHistory = history.filter(g => g.id !== gameId);
+    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+    console.log('Game deleted from history successfully');
+    return true;
+  } catch (e) {
+    console.error('Failed to delete from history:', e);
+    return false;
+  }
 }

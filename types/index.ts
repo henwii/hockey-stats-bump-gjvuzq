@@ -10,11 +10,16 @@ export interface PlayerStat {
   minus: number;
 }
 
+export interface GoalieStat {
+  name: string;
+  shotsAgainst: number;
+}
+
 export interface TeamStats {
   name: string;
   shots: number;
   players: PlayerStat[];
-  goalies: string[]; // up to 3 goalies
+  goalies: GoalieStat[]; // up to 3 goalies with stats
   selectedGoalie: number | null; // index of selected goalie
 }
 

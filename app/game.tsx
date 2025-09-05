@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions, TouchableOpacity } from 'react-native';
 import Header from '../components/Header';
 import { colors, commonStyles } from '../styles/commonStyles';
 import StatButton from '../components/StatButton';
@@ -22,7 +22,8 @@ export default function GameScreen() {
     incrementPlayerStat,
     setSelectedPlayer,
     toggleShiftMode,
-    setGoalies,
+    setGoalieCount,
+    updateGoalieName,
     selectGoalie,
     getTotalShotsForPeriod,
     resetCurrentGame,
@@ -35,6 +36,14 @@ export default function GameScreen() {
   React.useEffect(() => {
     console.log('Game loaded', game.id, 'Period:', game.period);
   }, [game.id, game.period]);
+
+  // Set first player as default when in player mode and no player is selected
+  React.useEffect(() => {
+    if (game.mode === 'players' && game.selectedPlayer === null && game.home.players.length > 0) {
+      console.log('Setting default player to first player:', game.home.players[0].number);
+      setSelectedPlayer(game.home.players[0].number);
+    }
+  }, [game.mode, game.selectedPlayer, game.home.players, setSelectedPlayer]);
 
   if (loading) {
     return (
@@ -52,16 +61,6 @@ export default function GameScreen() {
     }
   };
 
-  const getTileWidth = (playersCount: number) => {
-    let columns = 2;
-    if (playersCount >= 20) columns = 4;
-    else if (playersCount >= 12) columns = 3;
-    if (width < 360) columns = Math.max(2, columns - 1);
-    if (columns === 4) return '23%';
-    if (columns === 3) return '31%';
-    return '48%';
-  };
-
   const handlePlayerStatIncrement = (statName: keyof typeof game.home.players[0]) => {
     if (game.selectedPlayer === null) {
       console.log('No player selected');
@@ -74,14 +73,47 @@ export default function GameScreen() {
 
   const totalShotsCurrentPeriod = game.mode === 'players' ? getTotalShotsForPeriod(game.period) : 0;
 
-  const handleGoalieChange = (goalies: string[], selected: number) => {
-    setGoalies('home', goalies);
-    selectGoalie('home', selected);
+  const handleGoalieCountChange = (count: number) => {
+    setGoalieCount('home', count);
+    if (game.away) {
+      setGoalieCount('away', count);
+    }
   };
 
   const getPlayerStats = (playerNumber: string) => {
     const player = game.home.players.find(p => p.number === playerNumber);
     return player || { shots: 0, faceOffWins: 0, faceOffLosses: 0, plus: 0, minus: 0 };
+  };
+
+  const getPlayerButtonWidth = () => {
+    return '31%'; // 3 buttons per row as requested
+  };
+
+  const renderGoalieButtons = (team: 'home' | 'away') => {
+    const teamData = team === 'home' ? game.home : game.away;
+    if (!teamData) return null;
+
+    return (
+      <View style={styles.goalieSection}>
+        <Text style={styles.goalieTitle}>Select Goalie:</Text>
+        <View style={styles.goalieButtonsRow}>
+          {teamData.goalies.map((goalie, index) => (
+            <View key={index} style={styles.goalieButtonContainer}>
+              <StatButton
+                label={goalie.name}
+                onPress={() => selectGoalie(team, index)}
+                color={teamData.selectedGoalie === index ? colors.green : colors.blue}
+                style={styles.goalieButton}
+                textStyle={{ fontSize: 12, fontWeight: 'bold' }}
+              />
+              <Text style={styles.goalieStats}>
+                Shots: {goalie.shotsAgainst}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -104,29 +136,30 @@ export default function GameScreen() {
             {/* Period Card as Parent */}
             <View style={[commonStyles.card, { alignItems: 'center' }]}>
               <Text style={styles.periodTitle}>Period {game.period}</Text>
-              <View style={styles.nextPeriodContainer}>
-                <StatButton
-                  label="Next"
-                  onPress={nextPeriod}
-                  color={colors.green}
-                  style={styles.nextPeriodIconBtn}
-                />
-                <Ionicons name="play-forward" size={16} color={colors.white} style={styles.nextPeriodIcon} />
-              </View>
+              <TouchableOpacity 
+                style={styles.nextPeriodContainer}
+                onPress={nextPeriod}
+                accessibilityLabel="Next Period"
+              >
+                <View style={styles.nextPeriodIconBtn}>
+                  <Ionicons name="play-forward" size={20} color={colors.white} />
+                </View>
+              </TouchableOpacity>
               
               {/* Home and Away cards as children */}
               <View style={styles.teamsRow}>
                 <View style={[styles.teamCard, { borderColor: colors.blue }]}>
                   <Text style={styles.teamName}>{game.home.name}</Text>
+                  
+                  {/* Goalie Selection for Home Team */}
+                  {renderGoalieButtons('home')}
+                  
                   <DoughnutChart
                     shots={game.home.shots}
                     label={`${game.home.shots}`}
                     color={colors.blue}
                   />
                   <View style={{ width: '100%' }}>
-                    <Text style={styles.goalieLabel}>
-                      Goalie: {game.home.goalies[game.home.selectedGoalie || 0]}
-                    </Text>
                     <StatButton
                       label="+1 Shot"
                       onPress={() => incrementTeamShots('home', 1)}
@@ -144,15 +177,16 @@ export default function GameScreen() {
 
                 <View style={[styles.teamCard, { borderColor: colors.red }]}>
                   <Text style={styles.teamName}>{game.away.name}</Text>
+                  
+                  {/* Goalie Selection for Away Team */}
+                  {renderGoalieButtons('away')}
+                  
                   <DoughnutChart
                     shots={game.away.shots}
                     label={`${game.away.shots}`}
                     color={colors.red}
                   />
                   <View style={{ width: '100%' }}>
-                    <Text style={styles.goalieLabel}>
-                      Goalie: {game.away.goalies[game.away.selectedGoalie || 0]}
-                    </Text>
                     <StatButton
                       label="+1 Shot"
                       onPress={() => incrementTeamShots('away', 1)}
@@ -175,19 +209,19 @@ export default function GameScreen() {
         {/* Player Mode */}
         {game.mode === 'players' && (
           <>
-            {/* Total Shots Card with Next Period Button */}
+            {/* Total Shots Card with Next Period Button and Goalie Selection */}
             <View style={[commonStyles.card, { alignItems: 'center' }]}>
               <View style={styles.totalShotsHeader}>
                 <Text style={styles.sectionTitle}>Total Shots - Period {game.period}</Text>
-                <View style={styles.nextPeriodContainer}>
-                  <StatButton
-                    label="Next"
-                    onPress={nextPeriod}
-                    color={colors.green}
-                    style={styles.nextPeriodIconBtn}
-                  />
-                  <Ionicons name="play-forward" size={12} color={colors.white} style={styles.nextPeriodIcon} />
-                </View>
+                <TouchableOpacity 
+                  style={styles.nextPeriodContainer}
+                  onPress={nextPeriod}
+                  accessibilityLabel="Next Period"
+                >
+                  <View style={styles.nextPeriodIconBtn}>
+                    <Ionicons name="play-forward" size={16} color={colors.white} />
+                  </View>
+                </TouchableOpacity>
               </View>
               <DoughnutChart
                 shots={totalShotsCurrentPeriod}
@@ -195,24 +229,24 @@ export default function GameScreen() {
                 color={colors.blue}
                 size={120}
               />
-              <Text style={styles.goalieLabel}>
-                Shots on: {game.home.goalies[game.home.selectedGoalie || 0]}
-              </Text>
+              
+              {/* Goalie Selection for Player Mode */}
+              {renderGoalieButtons('home')}
             </View>
 
             {/* Merged Select Player and Count Event Card */}
             <View style={[commonStyles.card]}>
               <View style={styles.mergedCardHeader}>
                 <Text style={styles.sectionTitle}>Select Player & Count Event</Text>
-                <View style={styles.shiftContainer}>
-                  <StatButton
-                    label="Shift"
-                    onPress={toggleShiftMode}
-                    color={game.shiftMode ? colors.yellow : colors.muted}
-                    style={styles.shiftBtn}
-                  />
-                  <Ionicons name="swap-vertical" size={12} color={colors.white} style={styles.shiftIcon} />
-                </View>
+                <TouchableOpacity 
+                  style={styles.shiftContainer}
+                  onPress={toggleShiftMode}
+                  accessibilityLabel="Toggle Shift Mode"
+                >
+                  <View style={[styles.shiftBtn, { backgroundColor: game.shiftMode ? colors.yellow : colors.muted }]}>
+                    <Ionicons name="swap-vertical" size={16} color={colors.white} />
+                  </View>
+                </TouchableOpacity>
               </View>
               <Text style={styles.sectionSubtitle}>
                 {game.selectedPlayer ? `Selected: #${game.selectedPlayer}` : 'No player selected'} | 
@@ -228,7 +262,7 @@ export default function GameScreen() {
                       const stats = getPlayerStats(p.number);
                       const isSelected = game.selectedPlayer === parseInt(p.number);
                       return (
-                        <View key={p.number} style={styles.playerContainer}>
+                        <View key={p.number} style={[styles.playerContainer, { width: getPlayerButtonWidth() }]}>
                           <StatButton
                             label={`#${p.number}`}
                             onPress={() => setSelectedPlayer(p.number)}
@@ -341,9 +375,8 @@ export default function GameScreen() {
           setSheetOpen(false);
           router.push('/player-setup');
         }}
-        goalies={game.home.goalies}
-        selectedGoalie={game.home.selectedGoalie || 0}
-        onGoalieChange={handleGoalieChange}
+        goalieCount={game.home.goalies.length}
+        onGoalieCountChange={handleGoalieCountChange}
       />
     </View>
   );
@@ -364,21 +397,50 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   nextPeriodContainer: {
-    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },
   nextPeriodIconBtn: {
     width: 40,
     height: 40,
-    minHeight: 40,
     borderRadius: 20,
+    backgroundColor: colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 4px 0px ' + colors.outline,
   },
-  nextPeriodIcon: {
-    position: 'absolute',
-    right: 8,
-    top: '50%',
-    marginTop: -8,
+  goalieSection: {
+    width: '100%',
+    marginVertical: 12,
+  },
+  goalieTitle: {
+    fontFamily: 'Fredoka_700Bold',
+    color: colors.text,
+    fontSize: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  goalieButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  goalieButtonContainer: {
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  goalieButton: {
+    minHeight: 40,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  goalieStats: {
+    fontFamily: 'Fredoka_400Regular',
+    color: colors.muted,
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 8,
   },
   teamsRow: {
     flexDirection: 'row',
@@ -401,13 +463,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
   },
-  goalieLabel: {
-    fontFamily: 'Fredoka_500Medium',
-    color: colors.muted,
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
   sectionTitle: {
     fontFamily: 'Fredoka_700Bold',
     color: colors.text,
@@ -427,21 +482,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   shiftContainer: {
-    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },
   shiftBtn: {
     width: 40,
     height: 40,
-    minHeight: 40,
     borderRadius: 20,
-  },
-  shiftIcon: {
-    position: 'absolute',
-    right: 8,
-    top: '50%',
-    marginTop: -6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 4px 0px ' + colors.outline,
   },
   mergedCardContent: {
     flexDirection: 'row',
@@ -469,9 +519,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    justifyContent: 'space-between',
   },
   playerContainer: {
-    width: '48%',
     alignItems: 'center',
   },
   playerSelectBtn: {
@@ -479,7 +529,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   playerStatsContainer: {
-    marginTop: 4,
+    marginTop: 8,
     alignItems: 'center',
   },
   playerStatText: {

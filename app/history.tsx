@@ -1,82 +1,83 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
 import Header from '../components/Header';
 import { colors, commonStyles } from '../styles/commonStyles';
-import Button from '../components/Button';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Game } from '../types';
 import { getHistory, deleteGameFromHistory } from '../hooks/useGame';
+import Button from '../components/Button';
 
 export default function HistoryScreen() {
   const [history, setHistory] = React.useState<Game[]>([]);
-
-  const loadHistory = async () => {
-    const data = await getHistory();
-    setHistory(data);
-  };
 
   React.useEffect(() => {
     loadHistory();
   }, []);
 
+  const loadHistory = async () => {
+    const games = await getHistory();
+    setHistory(games);
+  };
+
   const handleDelete = async (gameId: string) => {
     const success = await deleteGameFromHistory(gameId);
     if (success) {
-      await loadHistory(); // Reload the list
+      loadHistory(); // Reload the history
     }
   };
 
-  const renderRightActions = (gameId: string) => {
-    return (
-      <View style={styles.deleteAction}>
-        <Button
-          text="Delete"
-          onPress={() => handleDelete(gameId)}
-          style={styles.deleteButton}
-          textStyle={{ color: colors.white }}
-        />
-      </View>
-    );
-  };
+  const renderRightActions = (gameId: string) => (
+    <View style={styles.deleteAction}>
+      <Button
+        text="Delete"
+        onPress={() => handleDelete(gameId)}
+        style={styles.deleteButton}
+        textStyle={{ color: colors.white }}
+      />
+    </View>
+  );
 
   const formatGameStats = (game: Game) => {
-    if (game.mode === 'team' && game.away) {
-      return `Shots: ${game.home.name} ${game.home.shots} - ${game.away.shots} ${game.away.name}`;
+    if (game.mode === 'team') {
+      return `${game.home.name}: ${game.home.shots} shots${game.away ? ` | ${game.away.name}: ${game.away.shots} shots` : ''}`;
     } else {
-      // Player mode - show total shots
       const totalShots = game.home.players.reduce((sum, p) => sum + p.shots, 0);
-      return `Total Shots: ${totalShots} (${game.home.name})`;
+      return `${game.home.name}: ${totalShots} total shots | ${game.home.players.length} players`;
     }
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <Header title="History" />
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+    <View style={commonStyles.container}>
+      <Header title="Game History" canGoBack />
+      
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
         {history.length === 0 ? (
-          <Text style={commonStyles.text}>No games saved yet.</Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No games saved yet</Text>
+            <Text style={styles.emptySubtext}>Complete a game to see it here</Text>
+          </View>
         ) : (
-          history.map((g) => (
+          history.map((game) => (
             <Swipeable
-              key={g.id}
-              renderRightActions={() => renderRightActions(g.id)}
-              rightThreshold={40}
+              key={game.id}
+              renderRightActions={() => renderRightActions(game.id)}
             >
-              <View style={styles.card}>
-                <Text style={styles.title}>{new Date(g.date).toLocaleString()}</Text>
-                <Text style={styles.line}>
-                  {g.mode === 'team' && g.away 
-                    ? `${g.home.name} vs ${g.away.name}` 
-                    : `${g.home.name} (Player Mode)`
-                  }
-                </Text>
-                <Text style={styles.line}>{formatGameStats(g)}</Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.mode}>Mode: {g.mode === 'team' ? 'Team' : 'Players'}</Text>
-                  <Text style={styles.mode}>Periods: {g.period}</Text>
+              <View style={styles.gameCard}>
+                <View style={styles.gameHeader}>
+                  <Text style={styles.gameDate}>
+                    {new Date(game.date).toLocaleDateString()}
+                  </Text>
+                  <Text style={styles.gameMode}>
+                    {game.mode === 'team' ? 'Team Mode' : 'Player Mode'}
+                  </Text>
                 </View>
-                <Text style={styles.swipeHint}>← Swipe left to delete</Text>
+                <Text style={styles.gameStats}>
+                  {formatGameStats(game)}
+                </Text>
+                <Text style={styles.gamePeriods}>
+                  Periods played: {game.period}
+                </Text>
               </View>
             </Swipeable>
           ))
@@ -87,40 +88,64 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: {
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontFamily: 'Fredoka_700Bold',
+    fontSize: 20,
+    color: colors.text,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontFamily: 'Fredoka_400Regular',
+    fontSize: 16,
+    color: colors.muted,
+    textAlign: 'center',
+  },
+  gameCard: {
     backgroundColor: colors.card,
+    padding: 16,
     borderRadius: 16,
-    padding: 12,
+    marginBottom: 12,
     borderWidth: 3,
     borderColor: colors.outline,
     boxShadow: '0px 6px 0px ' + colors.outline,
   },
-  title: {
-    fontFamily: 'Fredoka_700Bold',
-    color: colors.text,
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  line: {
-    fontFamily: 'Fredoka_500Medium',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  metaRow: {
+  gameHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 4,
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  mode: {
+  gameDate: {
+    fontFamily: 'Fredoka_700Bold',
+    fontSize: 16,
+    color: colors.text,
+  },
+  gameMode: {
     fontFamily: 'Fredoka_500Medium',
+    fontSize: 14,
     color: colors.muted,
+    backgroundColor: colors.primaryBlue,
+    color: colors.white,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  swipeHint: {
+  gameStats: {
+    fontFamily: 'Fredoka_500Medium',
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  gamePeriods: {
     fontFamily: 'Fredoka_400Regular',
-    color: colors.muted,
     fontSize: 12,
-    fontStyle: 'italic',
-    marginTop: 4,
+    color: colors.muted,
   },
   deleteAction: {
     backgroundColor: colors.red,
@@ -128,7 +153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 80,
     borderRadius: 16,
-    marginLeft: 8,
+    marginBottom: 12,
   },
   deleteButton: {
     backgroundColor: 'transparent',
