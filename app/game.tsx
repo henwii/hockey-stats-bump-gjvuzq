@@ -9,7 +9,7 @@ import PlayerSelectionModal from '../components/PlayerSelectionModal';
 import { useGame } from '../hooks/useGame';
 import Button from '../components/Button';
 import BottomSheetSettings from '../components/BottomSheetSettings';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function GameScreen() {
@@ -36,10 +36,19 @@ export default function GameScreen() {
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [playerModalVisible, setPlayerModalVisible] = React.useState(false);
   const [modalStatType, setModalStatType] = React.useState<'plus' | 'minus'>('plus');
+  const [refreshKey, setRefreshKey] = React.useState(0);
 
   React.useEffect(() => {
     console.log('Game loaded', game.id, 'Period:', game.period);
   }, [game.id, game.period]);
+
+  // Force refresh when screen comes into focus (e.g., returning from goalie setup)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('Game screen focused, refreshing...');
+      setRefreshKey(prev => prev + 1);
+    }, [])
+  );
 
   // Set first player as default when in player mode and no player is selected
   React.useEffect(() => {
@@ -288,7 +297,7 @@ export default function GameScreen() {
                             onPress={() => setSelectedPlayer(p.number)}
                             color={isSelected ? colors.green : colors.blue}
                             style={styles.playerSelectBtn}
-                            textStyle={{ fontSize: 16, fontWeight: 'bold' }}
+                            textStyle={{ fontSize: 14, fontWeight: 'bold' }}
                           />
                           <View style={styles.playerStatsContainer}>
                             <Text style={styles.playerStatText}>S:{stats.shots}</Text>
@@ -548,25 +557,29 @@ const styles = StyleSheet.create({
   playerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 4,
     justifyContent: 'space-between',
   },
   playerContainer: {
     alignItems: 'center',
+    marginBottom: 6,
   },
   playerSelectBtn: {
-    minHeight: 60,
+    minHeight: 45,
     width: '100%',
   },
   playerStatsContainer: {
-    marginTop: 8,
+    marginTop: 4,
     alignItems: 'center',
+    paddingHorizontal: 1,
+    maxWidth: '100%',
   },
   playerStatText: {
     fontFamily: 'Fredoka_400Regular',
     color: colors.muted,
-    fontSize: 9,
+    fontSize: 7,
     textAlign: 'center',
+    lineHeight: 9,
   },
   eventCountersGrid: {
     gap: 8,

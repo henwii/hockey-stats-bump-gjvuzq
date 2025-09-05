@@ -36,29 +36,32 @@ export default function GoalieSetupScreen() {
         setGoalieCount('away', count);
       }
       
-      // Update home team goalie names
-      const homeNames = parseNames(homeGoalieNames);
-      console.log('Updating home goalie names:', homeNames);
-      
-      for (let i = 0; i < count; i++) {
-        const name = homeNames[i] || `Goalie ${i + 1}`;
-        console.log(`Updating home goalie ${i} to: ${name}`);
-        updateGoalieName('home', i, name);
-      }
-      
-      // Update away team goalie names if in team mode
-      if (game.away) {
-        const awayNames = parseNames(awayGoalieNames);
-        console.log('Updating away goalie names:', awayNames);
+      // Use setTimeout to ensure state updates are processed
+      setTimeout(() => {
+        // Update home team goalie names
+        const homeNames = parseNames(homeGoalieNames);
+        console.log('Updating home goalie names:', homeNames);
         
         for (let i = 0; i < count; i++) {
-          const name = awayNames[i] || `Goalie ${i + 1}`;
-          console.log(`Updating away goalie ${i} to: ${name}`);
-          updateGoalieName('away', i, name);
+          const name = homeNames[i] || `#${i + 1}`;
+          console.log(`Updating home goalie ${i} to: ${name}`);
+          updateGoalieName('home', i, name);
         }
-      }
-      
-      console.log('Goalie configuration saved successfully');
+        
+        // Update away team goalie names if in team mode
+        if (game.away) {
+          const awayNames = parseNames(awayGoalieNames);
+          console.log('Updating away goalie names:', awayNames);
+          
+          for (let i = 0; i < count; i++) {
+            const name = awayNames[i] || `#${i + 1}`;
+            console.log(`Updating away goalie ${i} to: ${name}`);
+            updateGoalieName('away', i, name);
+          }
+        }
+        
+        console.log('Goalie configuration saved successfully');
+      }, 100);
     }
     router.back();
   };
@@ -85,7 +88,7 @@ export default function GoalieSetupScreen() {
           <Text style={styles.label}>Goalie names (comma-separated)</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., Smith, Johnson, Williams"
+            placeholder="e.g., #1, #2, #3"
             placeholderTextColor={colors.muted}
             value={homeGoalieNames}
             onChangeText={setHomeGoalieNames}
@@ -98,7 +101,7 @@ export default function GoalieSetupScreen() {
               <Text style={styles.label}>Goalie names (comma-separated)</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., Brown, Davis, Miller"
+                placeholder="e.g., #1, #2, #3"
                 placeholderTextColor={colors.muted}
                 value={awayGoalieNames}
                 onChangeText={setAwayGoalieNames}

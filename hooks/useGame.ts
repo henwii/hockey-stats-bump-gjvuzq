@@ -18,7 +18,7 @@ const defaultPlayers = (count = 12): PlayerStat[] =>
 
 const defaultGoalies = (count = 2): GoalieStat[] =>
   Array.from({ length: count }).map((_, i) => ({
-    name: `Goalie ${i + 1}`,
+    name: `#${i + 1}`,
     shotsAgainst: 0,
   }));
 
@@ -67,18 +67,18 @@ export function useGame() {
         
         // Migrate old goalie format to new format
         if (!parsed.home.goalies || typeof parsed.home.goalies[0] === 'string') {
-          const oldGoalies = parsed.home.goalies as any[] || ['Goalie 1', 'Goalie 2'];
+          const oldGoalies = parsed.home.goalies as any[] || ['#1', '#2'];
           parsed.home.goalies = oldGoalies.map((name, index) => ({
-            name: typeof name === 'string' ? name : `Goalie ${index + 1}`,
+            name: typeof name === 'string' ? name : `#${index + 1}`,
             shotsAgainst: 0,
           }));
           parsed.home.selectedGoalie = parsed.home.selectedGoalie || 0;
         }
         
         if (parsed.away && (!parsed.away.goalies || typeof parsed.away.goalies[0] === 'string')) {
-          const oldGoalies = parsed.away.goalies as any[] || ['Goalie 1', 'Goalie 2'];
+          const oldGoalies = parsed.away.goalies as any[] || ['#1', '#2'];
           parsed.away.goalies = oldGoalies.map((name, index) => ({
-            name: typeof name === 'string' ? name : `Goalie ${index + 1}`,
+            name: typeof name === 'string' ? name : `#${index + 1}`,
             shotsAgainst: 0,
           }));
           parsed.away.selectedGoalie = parsed.away.selectedGoalie || 0;
@@ -343,8 +343,13 @@ export function useGame() {
 
   const setGoalieCount = (team: 'home' | 'away', count: number) => {
     const clampedCount = Math.max(1, Math.min(5, count)); // Allow 1-5 goalies
-    applyToTeam(team, (t) => {
-      const currentGoalies = [...t.goalies];
+    console.log(`Setting goalie count for ${team} team to ${clampedCount}`);
+    
+    setGame((g) => {
+      const teamData = team === 'home' ? g.home : g.away;
+      if (!teamData) return g;
+      
+      const currentGoalies = [...teamData.goalies];
       const newGoalies: GoalieStat[] = [];
       
       for (let i = 0; i < clampedCount; i++) {
@@ -352,18 +357,32 @@ export function useGame() {
           newGoalies.push(currentGoalies[i]);
         } else {
           newGoalies.push({
-            name: `Goalie ${i + 1}`,
+            name: `#${i + 1}`,
             shotsAgainst: 0,
           });
         }
       }
       
       // Adjust selected goalie if necessary
-      const newSelectedGoalie = t.selectedGoalie !== null && t.selectedGoalie < clampedCount 
-        ? t.selectedGoalie 
+      const newSelectedGoalie = teamData.selectedGoalie !== null && teamData.selectedGoalie < clampedCount 
+        ? teamData.selectedGoalie 
         : 0;
       
-      return { ...t, goalies: newGoalies, selectedGoalie: newSelectedGoalie };
+      const newGame = {
+        ...g,
+        [team]: {
+          ...teamData,
+          goalies: newGoalies,
+          selectedGoalie: newSelectedGoalie,
+        }
+      };
+      
+      // Force immediate save to ensure persistence
+      setTimeout(() => {
+        AsyncStorage.setItem(CURRENT_GAME_KEY, JSON.stringify(newGame));
+      }, 0);
+      
+      return newGame;
     });
   };
 
@@ -379,13 +398,20 @@ export function useGame() {
         console.log(`Updated goalie ${index} name to: ${name}`);
       }
       
-      return {
+      const newGame = {
         ...g,
         [team]: {
           ...teamData,
           goalies: updatedGoalies,
         }
       };
+      
+      // Force immediate save to ensure persistence
+      setTimeout(() => {
+        AsyncStorage.setItem(CURRENT_GAME_KEY, JSON.stringify(newGame));
+      }, 0);
+      
+      return newGame;
     });
   };
 
