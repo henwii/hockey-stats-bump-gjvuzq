@@ -15,11 +15,15 @@ export default function GameScreen() {
     game,
     loading,
     setMode,
+    nextPeriod,
     setTeamNames,
     incrementTeamShots,
-    incrementPlayerShot,
-    incrementPlayerFaceoff,
-    incrementPlayerPlusMinus,
+    incrementPlayerStat,
+    setSelectedPlayer,
+    toggleShiftMode,
+    setGoalies,
+    selectGoalie,
+    getTotalShotsForPeriod,
     resetCurrentGame,
     saveToHistory,
   } = useGame();
@@ -28,8 +32,8 @@ export default function GameScreen() {
   const [sheetOpen, setSheetOpen] = React.useState(false);
 
   React.useEffect(() => {
-    console.log('Game loaded', game.id);
-  }, [game.id]);
+    console.log('Game loaded', game.id, 'Period:', game.period);
+  }, [game.id, game.period]);
 
   if (loading) {
     return (
@@ -48,8 +52,6 @@ export default function GameScreen() {
   };
 
   const getTileWidth = (playersCount: number) => {
-    // Responsive columns: more players => more columns (smaller tiles)
-    // On small screens keep at least 2 columns.
     let columns = 2;
     if (playersCount >= 20) columns = 4;
     else if (playersCount >= 12) columns = 3;
@@ -59,10 +61,30 @@ export default function GameScreen() {
     return '48%';
   };
 
+  const handlePlayerStatIncrement = (statName: keyof typeof game.home.players[0]) => {
+    if (game.selectedPlayer === null) {
+      console.log('No player selected');
+      return;
+    }
+    
+    const playerNumber = String(game.selectedPlayer);
+    incrementPlayerStat('home', playerNumber, statName as any);
+    
+    // Auto-deselect player after stat increment
+    setSelectedPlayer(null);
+  };
+
+  const totalShotsCurrentPeriod = game.mode === 'players' ? getTotalShotsForPeriod(game.period) : 0;
+
+  const handleGoalieChange = (goalies: string[], selected: number) => {
+    setGoalies('home', goalies);
+    selectGoalie('home', selected);
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <Header
-        title="Game"
+        title={`Game - Period ${game.period}`}
         right={
           <Button
             text="Settings"
@@ -73,17 +95,30 @@ export default function GameScreen() {
       />
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
-        {/* Team section with shots and doughnuts */}
-        <View style={styles.teamsRow}>
-          <View style={[styles.teamCard, { borderColor: colors.blue }]}>
-            <Text style={styles.teamName}>{game.home.name}</Text>
-            <DoughnutChart
-              shots={game.home.shots}
-              label={`${game.home.shots}/100`}
-              color={colors.blue}
-            />
-            {game.mode === 'team' ? (
+        {/* Period Controls */}
+        <View style={[commonStyles.card, { alignItems: 'center' }]}>
+          <Text style={styles.periodTitle}>Period {game.period}</Text>
+          <Button
+            text="Next Period"
+            onPress={nextPeriod}
+            style={{ backgroundColor: colors.green, width: 200 }}
+          />
+        </View>
+
+        {/* Team Mode */}
+        {game.mode === 'team' && game.away && (
+          <View style={styles.teamsRow}>
+            <View style={[styles.teamCard, { borderColor: colors.blue }]}>
+              <Text style={styles.teamName}>{game.home.name}</Text>
+              <DoughnutChart
+                shots={game.home.shots}
+                label={`${game.home.shots}`}
+                color={colors.blue}
+              />
               <View style={{ width: '100%' }}>
+                <Text style={styles.goalieLabel}>
+                  Goalie: {game.home.goalies[game.home.selectedGoalie || 0]}
+                </Text>
                 <StatButton
                   label="+1 Shot"
                   onPress={() => incrementTeamShots('home', 1)}
@@ -98,18 +133,19 @@ export default function GameScreen() {
                   style={{ marginTop: 10 }}
                 />
               </View>
-            ) : null}
-          </View>
+            </View>
 
-          <View style={[styles.teamCard, { borderColor: colors.red }]}>
-            <Text style={styles.teamName}>{game.away.name}</Text>
-            <DoughnutChart
-              shots={game.away.shots}
-              label={`${game.away.shots}/100`}
-              color={colors.red}
-            />
-            {game.mode === 'team' ? (
+            <View style={[styles.teamCard, { borderColor: colors.red }]}>
+              <Text style={styles.teamName}>{game.away.name}</Text>
+              <DoughnutChart
+                shots={game.away.shots}
+                label={`${game.away.shots}`}
+                color={colors.red}
+              />
               <View style={{ width: '100%' }}>
+                <Text style={styles.goalieLabel}>
+                  Goalie: {game.away.goalies[game.away.selectedGoalie || 0]}
+                </Text>
                 <StatButton
                   label="+1 Shot"
                   onPress={() => incrementTeamShots('away', 1)}
@@ -124,116 +160,130 @@ export default function GameScreen() {
                   style={{ marginTop: 10 }}
                 />
               </View>
-            ) : null}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Player mode controls */}
-        {game.mode === 'players' ? (
-          <View style={[commonStyles.card]}>
-            <Text style={styles.sectionTitle}>Player Counters</Text>
-            <Text style={styles.sectionSubtitle}>Tap jersey numbers to add stats</Text>
-            <View style={styles.playersGrid}>
-              {/* Home players */}
-              <Text style={styles.groupTitle}>{game.home.name}</Text>
+        {/* Player Mode */}
+        {game.mode === 'players' && (
+          <>
+            {/* Overview Counter */}
+            <View style={[commonStyles.card, { alignItems: 'center' }]}>
+              <Text style={styles.sectionTitle}>Total Shots - Period {game.period}</Text>
+              <DoughnutChart
+                shots={totalShotsCurrentPeriod}
+                label={`${totalShotsCurrentPeriod}`}
+                color={colors.blue}
+                size={120}
+              />
+              <Text style={styles.goalieLabel}>
+                Shots on: {game.home.goalies[game.home.selectedGoalie || 0]}
+              </Text>
+            </View>
+
+            {/* Player Selection */}
+            <View style={[commonStyles.card]}>
+              <Text style={styles.sectionTitle}>1. Select Player</Text>
+              <Text style={styles.sectionSubtitle}>
+                {game.selectedPlayer ? `Selected: #${game.selectedPlayer}` : 'No player selected'}
+              </Text>
               <View style={styles.grid}>
                 {game.home.players.map((p) => (
-                  <View
-                    key={`home-${p.number}`}
-                    style={[
-                      styles.playerTile,
-                      { width: getTileWidth(game.home.players.length) },
-                    ]}
-                  >
-                    <StatButton
-                      label={`#${p.number} Shots`}
-                      onPress={() => incrementPlayerShot('home', p.number, 1)}
-                      color={colors.blue}
-                      count={p.shots}
-                      style={styles.shotsBtn}
-                      textStyle={{ fontSize: 20 }}
-                    />
-                    <View style={styles.actionRow}>
-                      <StatButton
-                        label="FO+"
-                        onPress={() => incrementPlayerFaceoff('home', p.number, 1)}
-                        color={colors.yellow}
-                        style={styles.smallBtn}
-                        textStyle={{ fontSize: 16 }}
-                      />
-                      <StatButton
-                        label="+1"
-                        onPress={() => incrementPlayerPlusMinus('home', p.number, 1)}
-                        color={colors.green}
-                        style={styles.smallBtn}
-                        textStyle={{ fontSize: 16 }}
-                      />
-                      <StatButton
-                        label="-1"
-                        onPress={() => incrementPlayerPlusMinus('home', p.number, -1)}
-                        color={colors.softRed}
-                        style={styles.smallBtn}
-                        textStyle={{ fontSize: 16 }}
-                      />
-                    </View>
-                    <Text style={styles.tileStats}>
-                      S:{p.shots} | FO:{p.faceoffsWon} | +/-:{p.plusMinus}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              {/* Away players */}
-              <Text style={styles.groupTitle}>{game.away.name}</Text>
-              <View style={styles.grid}>
-                {game.away.players.map((p) => (
-                  <View
-                    key={`away-${p.number}`}
-                    style={[
-                      styles.playerTile,
-                      { width: getTileWidth(game.away.players.length) },
-                    ]}
-                  >
-                    <StatButton
-                      label={`#${p.number} Shots`}
-                      onPress={() => incrementPlayerShot('away', p.number, 1)}
-                      color={colors.red}
-                      count={p.shots}
-                      style={styles.shotsBtn}
-                      textStyle={{ fontSize: 20 }}
-                    />
-                    <View style={styles.actionRow}>
-                      <StatButton
-                        label="FO+"
-                        onPress={() => incrementPlayerFaceoff('away', p.number, 1)}
-                        color={colors.yellow}
-                        style={styles.smallBtn}
-                        textStyle={{ fontSize: 16 }}
-                      />
-                      <StatButton
-                        label="+1"
-                        onPress={() => incrementPlayerPlusMinus('away', p.number, 1)}
-                        color={colors.green}
-                        style={styles.smallBtn}
-                        textStyle={{ fontSize: 16 }}
-                      />
-                      <StatButton
-                        label="-1"
-                        onPress={() => incrementPlayerPlusMinus('away', p.number, -1)}
-                        color={colors.softRed}
-                        style={styles.smallBtn}
-                        textStyle={{ fontSize: 16 }}
-                      />
-                    </View>
-                    <Text style={styles.tileStats}>
-                      S:{p.shots} | FO:{p.faceoffsWon} | +/-:{p.plusMinus}
-                    </Text>
-                  </View>
+                  <StatButton
+                    key={p.number}
+                    label={`#${p.number}`}
+                    onPress={() => setSelectedPlayer(p.number)}
+                    color={game.selectedPlayer === parseInt(p.number) ? colors.green : colors.blue}
+                    style={[styles.playerSelectBtn, { width: getTileWidth(game.home.players.length) }]}
+                    textStyle={{ fontSize: 18, fontWeight: 'bold' }}
+                  />
                 ))}
               </View>
             </View>
-          </View>
-        ) : null}
+
+            {/* Event Counters */}
+            <View style={[commonStyles.card]}>
+              <Text style={styles.sectionTitle}>2. Count Event</Text>
+              <View style={styles.shiftRow}>
+                <Text style={styles.sectionSubtitle}>
+                  {game.shiftMode ? 'SHIFT MODE: Counting DOWN' : 'Normal: Counting UP'}
+                </Text>
+                <StatButton
+                  label={game.shiftMode ? 'SHIFT ON' : 'SHIFT OFF'}
+                  onPress={toggleShiftMode}
+                  color={game.shiftMode ? colors.yellow : colors.muted}
+                  style={{ width: 120, height: 40 }}
+                  textStyle={{ fontSize: 14 }}
+                />
+              </View>
+              
+              <View style={styles.eventGrid}>
+                <StatButton
+                  label="Shot"
+                  onPress={() => handlePlayerStatIncrement('shots')}
+                  color={colors.blue}
+                  style={styles.eventBtn}
+                  textStyle={{ fontSize: 16 }}
+                />
+                <StatButton
+                  label="FO Win"
+                  onPress={() => handlePlayerStatIncrement('faceOffWins')}
+                  color={colors.green}
+                  style={styles.eventBtn}
+                  textStyle={{ fontSize: 16 }}
+                />
+                <StatButton
+                  label="FO Loss"
+                  onPress={() => handlePlayerStatIncrement('faceOffLosses')}
+                  color={colors.softRed}
+                  style={styles.eventBtn}
+                  textStyle={{ fontSize: 16 }}
+                />
+                <StatButton
+                  label="Plus"
+                  onPress={() => handlePlayerStatIncrement('plus')}
+                  color={colors.yellow}
+                  style={styles.eventBtn}
+                  textStyle={{ fontSize: 16 }}
+                />
+                <StatButton
+                  label="Minus"
+                  onPress={() => handlePlayerStatIncrement('minus')}
+                  color={colors.red}
+                  style={styles.eventBtn}
+                  textStyle={{ fontSize: 16 }}
+                />
+              </View>
+            </View>
+
+            {/* Player Stats Summary */}
+            <View style={[commonStyles.card]}>
+              <Text style={styles.sectionTitle}>Player Stats - Period {game.period}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.statsTable}>
+                  <View style={styles.statsHeader}>
+                    <Text style={styles.statsHeaderText}>#</Text>
+                    <Text style={styles.statsHeaderText}>Shots</Text>
+                    <Text style={styles.statsHeaderText}>FO+</Text>
+                    <Text style={styles.statsHeaderText}>FO-</Text>
+                    <Text style={styles.statsHeaderText}>+</Text>
+                    <Text style={styles.statsHeaderText}>-</Text>
+                  </View>
+                  {game.home.players.map((p) => (
+                    <View key={p.number} style={styles.statsRow}>
+                      <Text style={styles.statsCell}>{p.number}</Text>
+                      <Text style={styles.statsCell}>{p.shots}</Text>
+                      <Text style={styles.statsCell}>{p.faceOffWins}</Text>
+                      <Text style={styles.statsCell}>{p.faceOffLosses}</Text>
+                      <Text style={styles.statsCell}>{p.plus}</Text>
+                      <Text style={styles.statsCell}>{p.minus}</Text>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          </>
+        )}
 
         <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
           <Button text="End Game & Save" onPress={onEndGame} style={{ backgroundColor: colors.green }} />
@@ -244,7 +294,7 @@ export default function GameScreen() {
       <BottomSheetSettings
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        teamNames={{ home: game.home.name, away: game.away.name }}
+        teamNames={{ home: game.home.name, away: game.away?.name || 'Away' }}
         onChangeNames={({ home, away }) => setTeamNames(home, away)}
         mode={game.mode}
         onToggleMode={(m) => setMode(m)}
@@ -252,12 +302,21 @@ export default function GameScreen() {
           setSheetOpen(false);
           router.push('/player-setup');
         }}
+        goalies={game.home.goalies}
+        selectedGoalie={game.home.selectedGoalie || 0}
+        onGoalieChange={handleGoalieChange}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  periodTitle: {
+    fontFamily: 'Fredoka_700Bold',
+    color: colors.text,
+    fontSize: 24,
+    marginBottom: 12,
+  },
   teamsRow: {
     flexDirection: 'row',
     gap: 12,
@@ -277,6 +336,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
   },
+  goalieLabel: {
+    fontFamily: 'Fredoka_500Medium',
+    color: colors.muted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
   sectionTitle: {
     fontFamily: 'Fredoka_700Bold',
     color: colors.text,
@@ -287,50 +353,61 @@ const styles = StyleSheet.create({
     fontFamily: 'Fredoka_500Medium',
     color: colors.muted,
     fontSize: 14,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  playersGrid: {
-    gap: 8,
-  },
-  groupTitle: {
-    fontFamily: 'Fredoka_700Bold',
-    color: colors.text,
-    fontSize: 18,
-    marginTop: 6,
-    marginBottom: 4,
+  shiftRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-  },
-  playerTile: {
-    backgroundColor: colors.offWhite,
-    borderWidth: 2,
-    borderColor: colors.outline,
-    borderRadius: 16,
-    padding: 10,
-    boxShadow: '0px 6px 0px ' + colors.outline,
     gap: 8,
   },
-  actionRow: {
+  playerSelectBtn: {
+    minHeight: 60,
+  },
+  eventGrid: {
     flexDirection: 'row',
-    gap: 8,
-    width: '100%',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  smallBtn: {
-    flex: 1,
-    minHeight: 48,
+  eventBtn: {
+    width: '30%',
+    minHeight: 60,
+  },
+  statsTable: {
+    minWidth: 300,
+  },
+  statsHeader: {
+    flexDirection: 'row',
+    backgroundColor: colors.primaryBlue,
     paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    marginBottom: 4,
   },
-  shotsBtn: {
-    width: '100%',
-    minHeight: 64,
-    paddingVertical: 10,
+  statsHeaderText: {
+    color: colors.white,
+    fontFamily: 'Fredoka_700Bold',
+    fontSize: 14,
+    width: 40,
+    textAlign: 'center',
   },
-  tileStats: {
-    marginTop: 2,
+  statsRow: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outline,
+  },
+  statsCell: {
     fontFamily: 'Fredoka_500Medium',
-    color: colors.muted,
+    color: colors.text,
+    fontSize: 14,
+    width: 40,
+    textAlign: 'center',
   },
 });

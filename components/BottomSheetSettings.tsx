@@ -13,6 +13,9 @@ interface BottomSheetSettingsProps {
   mode: 'team' | 'players';
   onToggleMode: (mode: 'team' | 'players') => void;
   onOpenPlayerSetup: () => void;
+  goalies: string[];
+  selectedGoalie: number;
+  onGoalieChange: (goalies: string[], selected: number) => void;
 }
 
 export default function BottomSheetSettings({
@@ -22,10 +25,16 @@ export default function BottomSheetSettings({
   onChangeNames,
   mode,
   onToggleMode,
-  onOpenPlayerSetup
+  onOpenPlayerSetup,
+  goalies,
+  selectedGoalie,
+  onGoalieChange
 }: BottomSheetSettingsProps) {
   const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['30%', '55%'], []);
+  const snapPoints = useMemo(() => ['40%', '70%'], []);
+
+  const [localGoalies, setLocalGoalies] = React.useState(goalies);
+  const [localSelectedGoalie, setLocalSelectedGoalie] = React.useState(selectedGoalie);
 
   React.useEffect(() => {
     if (open) {
@@ -35,10 +44,28 @@ export default function BottomSheetSettings({
     }
   }, [open]);
 
+  React.useEffect(() => {
+    setLocalGoalies(goalies);
+    setLocalSelectedGoalie(selectedGoalie);
+  }, [goalies, selectedGoalie]);
+
+  const updateGoalie = (index: number, name: string) => {
+    const newGoalies = [...localGoalies];
+    newGoalies[index] = name;
+    setLocalGoalies(newGoalies);
+    onGoalieChange(newGoalies, localSelectedGoalie);
+  };
+
+  const selectGoalie = (index: number) => {
+    setLocalSelectedGoalie(index);
+    onGoalieChange(localGoalies, index);
+  };
+
   const renderContent = useCallback(() => {
     return (
       <BottomSheetView style={styles.content}>
         <Text style={styles.sheetTitle}>Settings</Text>
+        
         <View style={styles.row}>
           <Text style={styles.label}>Mode</Text>
           <View style={styles.switchRow}>
@@ -64,22 +91,48 @@ export default function BottomSheetSettings({
           />
         </View>
 
-        <View style={styles.row}>
-          <Text style={styles.label}>Away</Text>
-          <TextInput
-            placeholder="Away name"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            value={teamNames.away}
-            onChangeText={(t) => onChangeNames({ ...teamNames, away: t })}
-          />
+        {mode === 'team' && (
+          <View style={styles.row}>
+            <Text style={styles.label}>Away</Text>
+            <TextInput
+              placeholder="Away name"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={teamNames.away}
+              onChangeText={(t) => onChangeNames({ ...teamNames, away: t })}
+            />
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Goalies</Text>
+          {localGoalies.map((goalie, index) => (
+            <View key={index} style={styles.goalieRow}>
+              <Button
+                text={localSelectedGoalie === index ? '●' : '○'}
+                onPress={() => selectGoalie(index)}
+                style={[
+                  styles.goalieSelectBtn,
+                  { backgroundColor: localSelectedGoalie === index ? colors.green : colors.muted }
+                ]}
+                textStyle={{ fontSize: 16 }}
+              />
+              <TextInput
+                placeholder={`Goalie ${index + 1}`}
+                placeholderTextColor={colors.muted}
+                style={[styles.input, { flex: 1 }]}
+                value={goalie}
+                onChangeText={(text) => updateGoalie(index, text)}
+              />
+            </View>
+          ))}
         </View>
 
         <Button text="Configure Player Numbers" onPress={onOpenPlayerSetup} />
         <Button text="Close" onPress={onClose} style={{ backgroundColor: colors.red }} />
       </BottomSheetView>
     );
-  }, [teamNames, onChangeNames, onClose, mode, onToggleMode, onOpenPlayerSetup]);
+  }, [teamNames, onChangeNames, onClose, mode, onToggleMode, onOpenPlayerSetup, localGoalies, localSelectedGoalie]);
 
   return (
     <BottomSheet
@@ -146,5 +199,26 @@ const styles = StyleSheet.create({
   },
   on: {
     textDecorationLine: 'underline',
+  },
+  section: {
+    gap: 8,
+  },
+  sectionTitle: {
+    color: colors.white,
+    fontFamily: 'Fredoka_700Bold',
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  goalieRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  goalieSelectBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

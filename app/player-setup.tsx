@@ -10,7 +10,9 @@ import { router } from 'expo-router';
 export default function PlayerSetupScreen() {
   const { game, setPlayerNumbers } = useGame();
   const [homeNumbers, setHomeNumbers] = React.useState(game.home.players.map((p) => p.number).join(', '));
-  const [awayNumbers, setAwayNumbers] = React.useState(game.away.players.map((p) => p.number).join(', '));
+  const [awayNumbers, setAwayNumbers] = React.useState(
+    game.away ? game.away.players.map((p) => p.number).join(', ') : ''
+  );
 
   const parseNumbers = (value: string) =>
     value
@@ -40,23 +42,25 @@ export default function PlayerSetupScreen() {
           />
         </View>
 
-        <View style={commonStyles.card}>
-          <Text style={styles.title}>{game.away.name} Players</Text>
-          <Text style={styles.label}>Comma-separated jersey numbers</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., 4, 8, 11, 15, 19"
-            placeholderTextColor={colors.muted}
-            value={awayNumbers}
-            onChangeText={setAwayNumbers}
-          />
-          <Button
-            text="Save Away Numbers"
-            onPress={() => {
-              setPlayerNumbers('away', parseNumbers(awayNumbers));
-            }}
-          />
-        </View>
+        {game.mode === 'team' && game.away && (
+          <View style={commonStyles.card}>
+            <Text style={styles.title}>{game.away.name} Players</Text>
+            <Text style={styles.label}>Comma-separated jersey numbers</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 4, 8, 11, 15, 19"
+              placeholderTextColor={colors.muted}
+              value={awayNumbers}
+              onChangeText={setAwayNumbers}
+            />
+            <Button
+              text="Save Away Numbers"
+              onPress={() => {
+                setPlayerNumbers('away', parseNumbers(awayNumbers));
+              }}
+            />
+          </View>
+        )}
 
         <Button
           text="Done"
