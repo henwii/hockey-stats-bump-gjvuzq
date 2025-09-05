@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import Header from '../components/Header';
 import { colors, commonStyles } from '../styles/commonStyles';
@@ -21,23 +21,10 @@ export default function HistoryScreen() {
   }, []);
 
   const handleDelete = async (gameId: string) => {
-    Alert.alert(
-      'Delete Game',
-      'Are you sure you want to delete this game?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await deleteGameFromHistory(gameId);
-            if (success) {
-              await loadHistory(); // Reload the list
-            }
-          },
-        },
-      ]
-    );
+    const success = await deleteGameFromHistory(gameId);
+    if (success) {
+      await loadHistory(); // Reload the list
+    }
   };
 
   const renderRightActions = (gameId: string) => {

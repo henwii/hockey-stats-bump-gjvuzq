@@ -7,60 +7,58 @@ import { colors } from '../styles/commonStyles';
 interface DoughnutChartProps {
   size?: number;
   strokeWidth?: number;
-  // If shots is provided, progress is computed as shots / 100 (1 shot = 1%)
   shots?: number;
-  progress?: number; // 0..1, optional fallback
+  progress?: number;
   label?: string;
   color?: string;
 }
 
 export default function DoughnutChart({
-  size = 120,
-  strokeWidth = 16,
-  shots,
-  progress,
-  label = '',
-  color = colors.red,
+  size = 100,
+  strokeWidth = 12,
+  shots = 0,
+  progress = 0,
+  label,
+  color = colors.blue,
 }: DoughnutChartProps) {
   const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  const computedProgress = (() => {
-    const base = typeof shots === 'number' ? shots / 100 : (typeof progress === 'number' ? progress : 0);
-    const clamped = Math.max(0, Math.min(1, base));
-    return clamped;
-  })();
-
-  const progressStroke = circumference * computedProgress;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDasharray = circumference;
+  
+  // Use progress if provided, otherwise calculate from shots (max 100)
+  const actualProgress = progress || Math.min(shots / 100, 1);
+  const strokeDashoffset = circumference - actualProgress * circumference;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      <Svg width={size} height={size}>
+      <Svg width={size} height={size} style={styles.svg}>
+        {/* Background circle */}
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           stroke={colors.outline}
           strokeWidth={strokeWidth}
-          fill="none"
-          strokeLinecap="round"
+          fill="transparent"
         />
+        {/* Progress circle */}
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           stroke={color}
           strokeWidth={strokeWidth}
-          strokeDasharray={`${progressStroke}, ${circumference}`}
-          rotation="-90"
-          origin={`${size / 2}, ${size / 2}`}
-          fill="none"
+          fill="transparent"
+          strokeDasharray={strokeDasharray}
+          strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </Svg>
-      <View style={styles.center}>
-        <Text style={styles.centerText}>{Math.round(computedProgress * 100)}%</Text>
-        {label ? <Text style={styles.centerLabel}>{label}</Text> : null}
+      <View style={styles.labelContainer}>
+        <Text style={[styles.label, { color }]}>
+          {label || shots.toString()}
+        </Text>
       </View>
     </View>
   );
@@ -68,22 +66,20 @@ export default function DoughnutChart({
 
 const styles = StyleSheet.create({
   container: {
+    justifyContent: 'center',
+    alignItems: 'center',
     position: 'relative',
+  },
+  svg: {
+    position: 'absolute',
+  },
+  labelContainer: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  center: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  centerText: {
+  label: {
     fontFamily: 'Fredoka_700Bold',
-    fontSize: 22,
-    color: colors.text,
-  },
-  centerLabel: {
-    fontFamily: 'Fredoka_500Medium',
-    fontSize: 12,
-    color: colors.muted,
+    fontSize: 24,
+    textAlign: 'center',
   },
 });

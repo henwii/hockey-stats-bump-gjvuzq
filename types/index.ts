@@ -18,6 +18,14 @@ export interface TeamStats {
   selectedGoalie: number | null; // index of selected goalie
 }
 
+export interface PeriodStats {
+  teamStats: {
+    home: TeamStats;
+    away?: TeamStats;
+  };
+  playerStats: { [playerNumber: string]: PlayerStat };
+}
+
 export interface Game {
   id: string;
   date: string;
@@ -27,5 +35,5 @@ export interface Game {
   away?: TeamStats; // Optional for single team in player mode
   selectedPlayer: number | null; // For player mode two-press system
   shiftMode: boolean; // For decrementing in player mode
-  periodStats: { [period: number]: { [playerNumber: string]: PlayerStat } }; // Stats per period
+  periodStats: { [period: number]: PeriodStats }; // Stats per period
 }
