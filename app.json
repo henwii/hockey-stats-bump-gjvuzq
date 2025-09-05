@@ -1,31 +1,32 @@
+
 {
   "expo": {
-    "name": "Natively",
-    "slug": "Natively",
+    "name": "Rink Rumble Stats",
+    "slug": "rink-rumble-stats",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/natively-dark.png",
-    "userInterfaceStyle": "dark",
+    "icon": "./assets/images/final_quest_240x240.png",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/natively-dark.png",
+      "image": "./assets/images/final_quest_240x240.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#F5F8FF"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.Natively",
+      "bundleIdentifier": "com.anonymous.rinkrumblestats",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/natively-dark.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/final_quest_240x240.png",
+        "backgroundColor": "#F5F8FF"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively"
+      "package": "com.anonymous.rinkrumblestats"
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",
@@ -35,7 +36,7 @@
       "expo-font",
       "expo-router"
     ],
-    "scheme": "natively",
+    "scheme": "rinkrumblestats",
     "experiments": {
       "typedRoutes": true
     },

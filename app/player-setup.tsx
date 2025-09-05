@@ -9,10 +9,7 @@ import { router } from 'expo-router';
 
 export default function PlayerSetupScreen() {
   const { game, setPlayerNumbers } = useGame();
-  const [homeNumbers, setHomeNumbers] = React.useState(game.home.players.map((p) => p.number).join(', '));
-  const [awayNumbers, setAwayNumbers] = React.useState(
-    game.away ? game.away.players.map((p) => p.number).join(', ') : ''
-  );
+  const [playerNumbers, setLocalPlayerNumbers] = React.useState(game.home.players.map((p) => p.number).join(', '));
 
   const parseNumbers = (value: string) =>
     value
@@ -20,52 +17,37 @@ export default function PlayerSetupScreen() {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
+  const handleSave = () => {
+    console.log('Saving player numbers:', parseNumbers(playerNumbers));
+    setPlayerNumbers('home', parseNumbers(playerNumbers));
+    router.back();
+  };
+
   return (
     <View style={{ flex: 1 }}>
-      <Header title="Player Setup" />
+      <Header title="Configure Player Numbers" />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         <View style={commonStyles.card}>
-          <Text style={styles.title}>{game.home.name} Players</Text>
+          <Text style={styles.title}>Players</Text>
           <Text style={styles.label}>Comma-separated jersey numbers</Text>
           <TextInput
             style={styles.input}
             placeholder="e.g., 2, 7, 10, 12, 16"
             placeholderTextColor={colors.muted}
-            value={homeNumbers}
-            onChangeText={setHomeNumbers}
+            value={playerNumbers}
+            onChangeText={setLocalPlayerNumbers}
           />
           <Button
-            text="Save Home Numbers"
-            onPress={() => {
-              setPlayerNumbers('home', parseNumbers(homeNumbers));
-            }}
+            text="Save Player Numbers"
+            onPress={handleSave}
+            style={{ backgroundColor: colors.green }}
           />
         </View>
-
-        {game.mode === 'team' && game.away && (
-          <View style={commonStyles.card}>
-            <Text style={styles.title}>{game.away.name} Players</Text>
-            <Text style={styles.label}>Comma-separated jersey numbers</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., 4, 8, 11, 15, 19"
-              placeholderTextColor={colors.muted}
-              value={awayNumbers}
-              onChangeText={setAwayNumbers}
-            />
-            <Button
-              text="Save Away Numbers"
-              onPress={() => {
-                setPlayerNumbers('away', parseNumbers(awayNumbers));
-              }}
-            />
-          </View>
-        )}
 
         <Button
           text="Done"
           onPress={() => router.back()}
-          style={{ backgroundColor: colors.green }}
+          style={{ backgroundColor: colors.blue }}
         />
       </ScrollView>
     </View>

@@ -104,11 +104,15 @@ export default function GameScreen() {
             {/* Period Card as Parent */}
             <View style={[commonStyles.card, { alignItems: 'center' }]}>
               <Text style={styles.periodTitle}>Period {game.period}</Text>
-              <Button
-                text="Next Period"
-                onPress={nextPeriod}
-                style={{ backgroundColor: colors.green, width: 200 }}
-              />
+              <View style={styles.nextPeriodContainer}>
+                <StatButton
+                  label="Next"
+                  onPress={nextPeriod}
+                  color={colors.green}
+                  style={styles.nextPeriodIconBtn}
+                />
+                <Ionicons name="play-forward" size={16} color={colors.white} style={styles.nextPeriodIcon} />
+              </View>
               
               {/* Home and Away cards as children */}
               <View style={styles.teamsRow}>
@@ -175,12 +179,15 @@ export default function GameScreen() {
             <View style={[commonStyles.card, { alignItems: 'center' }]}>
               <View style={styles.totalShotsHeader}>
                 <Text style={styles.sectionTitle}>Total Shots - Period {game.period}</Text>
-                <Button
-                  text="Next Period"
-                  onPress={nextPeriod}
-                  style={styles.nextPeriodBtn}
-                  textStyle={{ fontSize: 12 }}
-                />
+                <View style={styles.nextPeriodContainer}>
+                  <StatButton
+                    label="Next"
+                    onPress={nextPeriod}
+                    color={colors.green}
+                    style={styles.nextPeriodIconBtn}
+                  />
+                  <Ionicons name="play-forward" size={12} color={colors.white} style={styles.nextPeriodIcon} />
+                </View>
               </View>
               <DoughnutChart
                 shots={totalShotsCurrentPeriod}
@@ -193,86 +200,98 @@ export default function GameScreen() {
               </Text>
             </View>
 
-            {/* Player Selection */}
+            {/* Merged Select Player and Count Event Card */}
             <View style={[commonStyles.card]}>
-              <Text style={styles.sectionTitle}>1. Select Player</Text>
-              <Text style={styles.sectionSubtitle}>
-                {game.selectedPlayer ? `Selected: #${game.selectedPlayer}` : 'No player selected'}
-              </Text>
-              <View style={styles.grid}>
-                {game.home.players.map((p) => {
-                  const stats = getPlayerStats(p.number);
-                  const isSelected = game.selectedPlayer === parseInt(p.number);
-                  return (
-                    <View key={p.number} style={[styles.playerContainer, { width: getTileWidth(game.home.players.length) }]}>
-                      <StatButton
-                        label={`#${p.number}`}
-                        onPress={() => setSelectedPlayer(p.number)}
-                        color={isSelected ? colors.green : colors.blue}
-                        style={styles.playerSelectBtn}
-                        textStyle={{ fontSize: 20, fontWeight: 'bold' }}
-                      />
-                      <View style={styles.playerStatsContainer}>
-                        <Text style={styles.playerStatText}>S:{stats.shots} FO+:{stats.faceOffWins}</Text>
-                        <Text style={styles.playerStatText}>FO-:{stats.faceOffLosses} +:{stats.plus} -:{stats.minus}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Event Counters */}
-            <View style={[commonStyles.card]}>
-              <View style={styles.eventCardHeader}>
-                <Text style={styles.sectionTitle}>2. Count Event</Text>
-                <StatButton
-                  label={<Ionicons name="swap-vertical" size={16} color={colors.white} />}
-                  onPress={toggleShiftMode}
-                  color={game.shiftMode ? colors.yellow : colors.muted}
-                  style={styles.shiftBtn}
-                />
+              <View style={styles.mergedCardHeader}>
+                <Text style={styles.sectionTitle}>Select Player & Count Event</Text>
+                <View style={styles.shiftContainer}>
+                  <StatButton
+                    label="Shift"
+                    onPress={toggleShiftMode}
+                    color={game.shiftMode ? colors.yellow : colors.muted}
+                    style={styles.shiftBtn}
+                  />
+                  <Ionicons name="swap-vertical" size={12} color={colors.white} style={styles.shiftIcon} />
+                </View>
               </View>
               <Text style={styles.sectionSubtitle}>
-                {game.shiftMode ? 'SHIFT MODE: Counting DOWN' : 'Normal: Counting UP'}
+                {game.selectedPlayer ? `Selected: #${game.selectedPlayer}` : 'No player selected'} | 
+                {game.shiftMode ? ' SHIFT MODE: Counting DOWN' : ' Normal: Counting UP'}
               </Text>
               
-              <View style={styles.eventGrid}>
-                <StatButton
-                  label="Shot"
-                  onPress={() => handlePlayerStatIncrement('shots')}
-                  color={colors.blue}
-                  style={styles.shotBtn}
-                  textStyle={{ fontSize: 18, fontWeight: 'bold' }}
-                />
-                <StatButton
-                  label="FO Win"
-                  onPress={() => handlePlayerStatIncrement('faceOffWins')}
-                  color={colors.green}
-                  style={styles.eventBtn}
-                  textStyle={{ fontSize: 14 }}
-                />
-                <StatButton
-                  label="FO Loss"
-                  onPress={() => handlePlayerStatIncrement('faceOffLosses')}
-                  color={colors.softRed}
-                  style={styles.eventBtn}
-                  textStyle={{ fontSize: 14 }}
-                />
-                <StatButton
-                  label="Plus"
-                  onPress={() => handlePlayerStatIncrement('plus')}
-                  color={colors.yellow}
-                  style={styles.eventBtn}
-                  textStyle={{ fontSize: 14 }}
-                />
-                <StatButton
-                  label="Minus"
-                  onPress={() => handlePlayerStatIncrement('minus')}
-                  color={colors.red}
-                  style={styles.eventBtn}
-                  textStyle={{ fontSize: 14 }}
-                />
+              <View style={styles.mergedCardContent}>
+                {/* Player Selection on the Left */}
+                <View style={styles.playerSelectionSection}>
+                  <Text style={styles.subsectionTitle}>Players</Text>
+                  <View style={styles.playerGrid}>
+                    {game.home.players.map((p) => {
+                      const stats = getPlayerStats(p.number);
+                      const isSelected = game.selectedPlayer === parseInt(p.number);
+                      return (
+                        <View key={p.number} style={styles.playerContainer}>
+                          <StatButton
+                            label={`#${p.number}`}
+                            onPress={() => setSelectedPlayer(p.number)}
+                            color={isSelected ? colors.green : colors.blue}
+                            style={styles.playerSelectBtn}
+                            textStyle={{ fontSize: 16, fontWeight: 'bold' }}
+                          />
+                          <View style={styles.playerStatsContainer}>
+                            <Text style={styles.playerStatText}>S:{stats.shots}</Text>
+                            <Text style={styles.playerStatText}>FO+:{stats.faceOffWins}</Text>
+                            <Text style={styles.playerStatText}>FO-:{stats.faceOffLosses}</Text>
+                            <Text style={styles.playerStatText}>+:{stats.plus} -:{stats.minus}</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Divider */}
+                <View style={styles.divider} />
+
+                {/* Event Counters on the Right */}
+                <View style={styles.eventCountersSection}>
+                  <Text style={styles.subsectionTitle}>Events</Text>
+                  <View style={styles.eventCountersGrid}>
+                    <StatButton
+                      label="Shot"
+                      onPress={() => handlePlayerStatIncrement('shots')}
+                      color={colors.blue}
+                      style={styles.eventBtn}
+                      textStyle={{ fontSize: 16, fontWeight: 'bold' }}
+                    />
+                    <StatButton
+                      label="FO Win"
+                      onPress={() => handlePlayerStatIncrement('faceOffWins')}
+                      color={colors.green}
+                      style={styles.eventBtn}
+                      textStyle={{ fontSize: 14 }}
+                    />
+                    <StatButton
+                      label="FO Loss"
+                      onPress={() => handlePlayerStatIncrement('faceOffLosses')}
+                      color={colors.softRed}
+                      style={styles.eventBtn}
+                      textStyle={{ fontSize: 14 }}
+                    />
+                    <StatButton
+                      label="Plus"
+                      onPress={() => handlePlayerStatIncrement('plus')}
+                      color={colors.yellow}
+                      style={styles.eventBtn}
+                      textStyle={{ fontSize: 14 }}
+                    />
+                    <StatButton
+                      label="Minus"
+                      onPress={() => handlePlayerStatIncrement('minus')}
+                      color={colors.red}
+                      style={styles.eventBtn}
+                      textStyle={{ fontSize: 14 }}
+                    />
+                  </View>
+                </View>
               </View>
             </View>
 
@@ -344,11 +363,22 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 8,
   },
-  nextPeriodBtn: {
-    backgroundColor: colors.green,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    minHeight: 32,
+  nextPeriodContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextPeriodIconBtn: {
+    width: 40,
+    height: 40,
+    minHeight: 40,
+    borderRadius: 20,
+  },
+  nextPeriodIcon: {
+    position: 'absolute',
+    right: 8,
+    top: '50%',
+    marginTop: -8,
   },
   teamsRow: {
     flexDirection: 'row',
@@ -390,11 +420,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
   },
-  eventCardHeader: {
+  mergedCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  shiftContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   shiftBtn: {
     width: 40,
@@ -402,16 +437,45 @@ const styles = StyleSheet.create({
     minHeight: 40,
     borderRadius: 20,
   },
-  grid: {
+  shiftIcon: {
+    position: 'absolute',
+    right: 8,
+    top: '50%',
+    marginTop: -6,
+  },
+  mergedCardContent: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  playerSelectionSection: {
+    flex: 2,
+  },
+  divider: {
+    width: 2,
+    backgroundColor: colors.outline,
+    marginVertical: 8,
+  },
+  eventCountersSection: {
+    flex: 1,
+  },
+  subsectionTitle: {
+    fontFamily: 'Fredoka_700Bold',
+    color: colors.text,
+    fontSize: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  playerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   playerContainer: {
+    width: '48%',
     alignItems: 'center',
   },
   playerSelectBtn: {
-    minHeight: 80,
+    minHeight: 60,
     width: '100%',
   },
   playerStatsContainer: {
@@ -421,23 +485,15 @@ const styles = StyleSheet.create({
   playerStatText: {
     fontFamily: 'Fredoka_400Regular',
     color: colors.muted,
-    fontSize: 10,
+    fontSize: 9,
     textAlign: 'center',
   },
-  eventGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  shotBtn: {
-    width: '100%',
-    minHeight: 80,
-    marginBottom: 12,
+  eventCountersGrid: {
+    gap: 8,
   },
   eventBtn: {
-    width: '45%',
-    minHeight: 70,
+    minHeight: 50,
+    width: '100%',
   },
   statsTable: {
     minWidth: 300,

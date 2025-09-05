@@ -42,122 +42,82 @@ export function useGame() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const stored = await AsyncStorage.getItem(CURRENT_GAME_KEY);
-        if (stored) {
-          const parsed: Game = JSON.parse(stored);
-          // Migrate old games to new format
-          if (!parsed.period) parsed.period = 1;
-          if (!parsed.selectedPlayer) parsed.selectedPlayer = null;
-          if (parsed.shiftMode === undefined) parsed.shiftMode = false;
-          if (!parsed.periodStats) parsed.periodStats = {};
-          if (!parsed.home.goalies) {
-            parsed.home.goalies = ['Goalie 1', 'Goalie 2', 'Goalie 3'];
-            parsed.home.selectedGoalie = 0;
-          }
-          if (parsed.away && !parsed.away.goalies) {
-            parsed.away.goalies = ['Goalie 1', 'Goalie 2', 'Goalie 3'];
-            parsed.away.selectedGoalie = 0;
-          }
-          // Migrate old player stats to new format
-          parsed.home.players = parsed.home.players.map(p => ({
+    console.log('useGame hook initialized');
+    loadGame();
+  }, []);
+
+  const loadGame = async () => {
+    try {
+      console.log('Loading game from storage...');
+      const stored = await AsyncStorage.getItem(CURRENT_GAME_KEY);
+      if (stored) {
+        console.log('Found stored game, parsing...');
+        const parsed: Game = JSON.parse(stored);
+        
+        // Migrate old games to new format
+        if (!parsed.period) parsed.period = 1;
+        if (!parsed.selectedPlayer) parsed.selectedPlayer = null;
+        if (parsed.shiftMode === undefined) parsed.shiftMode = false;
+        if (!parsed.periodStats) parsed.periodStats = {};
+        if (!parsed.home.goalies) {
+          parsed.home.goalies = ['Goalie 1', 'Goalie 2', 'Goalie 3'];
+          parsed.home.selectedGoalie = 0;
+        }
+        if (parsed.away && !parsed.away.goalies) {
+          parsed.away.goalies = ['Goalie 1', 'Goalie 2', 'Goalie 3'];
+          parsed.away.selectedGoalie = 0;
+        }
+        
+        // Migrate old player stats to new format
+        parsed.home.players = parsed.home.players.map(p => ({
+          ...p,
+          faceOffWins: (p as any).faceoffsWon || p.faceOffWins || 0,
+          faceOffLosses: p.faceOffLosses || 0,
+          plus: Math.max(0, (p as any).plusMinus || p.plus || 0),
+          minus: Math.max(0, -(p as any).plusMinus || p.minus || 0),
+        }));
+        
+        if (parsed.away) {
+          parsed.away.players = parsed.away.players.map(p => ({
             ...p,
             faceOffWins: (p as any).faceoffsWon || p.faceOffWins || 0,
             faceOffLosses: p.faceOffLosses || 0,
             plus: Math.max(0, (p as any).plusMinus || p.plus || 0),
             minus: Math.max(0, -(p as any).plusMinus || p.minus || 0),
           }));
-          if (parsed.away) {
-            parsed.away.players = parsed.away.players.map(p => ({
-              ...p,
-              faceOffWins: (p as any).faceoffsWon || p.faceOffWins || 0,
-              faceOffLosses: p.faceOffLosses || 0,
-              plus: Math.max(0, (p as any).plusMinus || p.plus || 0),
-              minus: Math.max(0, -(p as any).plusMinus || p.minus || 0),
-            }));
-          }
-          setGame(parsed);
         }
-      } catch (e) {
-        console.log('Failed to load game', e);
-      } finally {
-        setLoading(false);
+        
+        console.log('Game loaded successfully');
+        setGame(parsed);
+      } else {
+        console.log('No stored game found, using empty game');
       }
-    })();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await AsyncStorage.setItem(CURRENT_GAME_KEY, JSON.stringify(game));
-      } catch (e) {
-        console.log('Failed to persist game', e);
-      }
-    })();
-  }, [game]);
-
-  const savePeriodStats = () => {
-    setGame((g) => {
-      const periodStats: PeriodStats = {
-        teamStats: {
-          home: { ...g.home },
-          away: g.away ? { ...g.away } : undefined,
-        },
-        playerStats: {},
-      };
-
-      // Save player stats for current period
-      g.home.players.forEach(player => {
-        periodStats.playerStats[player.number] = { ...player };
-      });
-
-      if (g.away) {
-        g.away.players.forEach(player => {
-          periodStats.playerStats[`away_${player.number}`] = { ...player };
-        });
-      }
-
-      return {
-        ...g,
-        periodStats: {
-          ...g.periodStats,
-          [g.period]: periodStats,
-        },
-      };
-    });
+    } catch (e) {
+      console.error('Failed to load game:', e);
+      // Reset to empty game on error
+      setGame(emptyGame());
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const resetPeriodCounters = () => {
-    setGame((g) => {
-      const resetPlayerStats = (players: PlayerStat[]): PlayerStat[] =>
-        players.map(p => ({
-          ...p,
-          shots: 0,
-          faceOffWins: 0,
-          faceOffLosses: 0,
-          plus: 0,
-          minus: 0,
-        }));
+  useEffect(() => {
+    if (!loading) {
+      saveGame();
+    }
+  }, [game, loading]);
 
-      return {
-        ...g,
-        home: {
-          ...g.home,
-          shots: 0,
-          players: resetPlayerStats(g.home.players),
-        },
-        away: g.away ? {
-          ...g.away,
-          shots: 0,
-          players: resetPlayerStats(g.away.players),
-        } : undefined,
-        selectedPlayer: null,
-      };
-    });
+  const saveGame = async () => {
+    try {
+      await AsyncStorage.setItem(CURRENT_GAME_KEY, JSON.stringify(game));
+      console.log('Game saved successfully');
+    } catch (e) {
+      console.error('Failed to persist game:', e);
+    }
   };
 
   const setMode = (mode: Mode) => {
+    console.log('Setting mode to:', mode);
     setGame((g) => {
       const newGame = { ...g, mode };
       // In player mode, remove away team
@@ -181,14 +141,58 @@ export function useGame() {
           text: "Yes",
           onPress: () => {
             console.log('Starting next period');
-            // Save current period stats
-            savePeriodStats();
-            
-            // Reset counters for the new period
-            resetPeriodCounters();
-            
-            // Increment period
-            setGame((g) => ({ ...g, period: g.period + 1 }));
+            // Save current period stats first
+            setGame((g) => {
+              const periodStats: PeriodStats = {
+                teamStats: {
+                  home: { ...g.home },
+                  away: g.away ? { ...g.away } : undefined,
+                },
+                playerStats: {},
+              };
+
+              // Save player stats for current period
+              g.home.players.forEach(player => {
+                periodStats.playerStats[player.number] = { ...player };
+              });
+
+              if (g.away) {
+                g.away.players.forEach(player => {
+                  periodStats.playerStats[`away_${player.number}`] = { ...player };
+                });
+              }
+
+              // Reset counters for the new period
+              const resetPlayerStats = (players: PlayerStat[]): PlayerStat[] =>
+                players.map(p => ({
+                  ...p,
+                  shots: 0,
+                  faceOffWins: 0,
+                  faceOffLosses: 0,
+                  plus: 0,
+                  minus: 0,
+                }));
+
+              return {
+                ...g,
+                period: g.period + 1,
+                periodStats: {
+                  ...g.periodStats,
+                  [g.period]: periodStats,
+                },
+                home: {
+                  ...g.home,
+                  shots: 0,
+                  players: resetPlayerStats(g.home.players),
+                },
+                away: g.away ? {
+                  ...g.away,
+                  shots: 0,
+                  players: resetPlayerStats(g.away.players),
+                } : undefined,
+                selectedPlayer: null,
+              };
+            });
           },
         },
       ],
@@ -255,10 +259,12 @@ export function useGame() {
     });
 
   const setSelectedPlayer = (playerNumber: string | null) => {
+    console.log('Setting selected player to:', playerNumber);
     setGame((g) => ({ ...g, selectedPlayer: playerNumber ? parseInt(playerNumber) : null }));
   };
 
   const toggleShiftMode = () => {
+    console.log('Toggling shift mode');
     setGame((g) => ({ ...g, shiftMode: !g.shiftMode }));
   };
 
@@ -318,15 +324,40 @@ export function useGame() {
               try {
                 console.log('Saving game to history');
                 // Save current period stats before saving to history
-                savePeriodStats();
+                const gameToSave = { ...game };
+                
+                // Save current period stats
+                const periodStats: PeriodStats = {
+                  teamStats: {
+                    home: { ...gameToSave.home },
+                    away: gameToSave.away ? { ...gameToSave.away } : undefined,
+                  },
+                  playerStats: {},
+                };
+
+                gameToSave.home.players.forEach(player => {
+                  periodStats.playerStats[player.number] = { ...player };
+                });
+
+                if (gameToSave.away) {
+                  gameToSave.away.players.forEach(player => {
+                    periodStats.playerStats[`away_${player.number}`] = { ...player };
+                  });
+                }
+
+                gameToSave.periodStats = {
+                  ...gameToSave.periodStats,
+                  [gameToSave.period]: periodStats,
+                };
                 
                 const stored = await AsyncStorage.getItem(HISTORY_KEY);
                 const history: Game[] = stored ? JSON.parse(stored) : [];
-                const newHistory = [game, ...history].slice(0, 20);
+                const newHistory = [gameToSave, ...history].slice(0, 20);
                 await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+                console.log('Game saved to history successfully');
                 resolve(true);
               } catch (e) {
-                console.log('Failed to save history', e);
+                console.error('Failed to save history:', e);
                 resolve(false);
               }
             },
@@ -345,7 +376,7 @@ export function useGame() {
       await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
       return true;
     } catch (e) {
-      console.log('Failed to delete from history', e);
+      console.error('Failed to delete from history:', e);
       return false;
     }
   };
@@ -375,7 +406,7 @@ export async function getHistory(): Promise<Game[]> {
     const stored = await AsyncStorage.getItem(HISTORY_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch (e) {
-    console.log('Failed to load history', e);
+    console.error('Failed to load history:', e);
     return [];
   }
 }
@@ -396,9 +427,10 @@ export async function deleteGameFromHistory(gameId: string): Promise<boolean> {
               const history: Game[] = stored ? JSON.parse(stored) : [];
               const newHistory = history.filter(g => g.id !== gameId);
               await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+              console.log('Game deleted from history successfully');
               resolve(true);
             } catch (e) {
-              console.log('Failed to delete from history', e);
+              console.error('Failed to delete from history:', e);
               resolve(false);
             }
           },
