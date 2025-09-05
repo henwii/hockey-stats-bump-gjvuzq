@@ -44,10 +44,43 @@ export default function HistoryScreen() {
 
   const formatGameStats = (game: Game) => {
     if (game.mode === 'team') {
-      return `${game.home.name}: ${game.home.shots} shots${game.away ? ` | ${game.away.name}: ${game.away.shots} shots` : ''}`;
+      // Calculate total shots across all periods for team mode
+      let homeTotalShots = 0;
+      let awayTotalShots = 0;
+      
+      // Add shots from all periods
+      Object.values(game.periodStats || {}).forEach(periodData => {
+        homeTotalShots += periodData.teamStats.home.shots || 0;
+        if (periodData.teamStats.away) {
+          awayTotalShots += periodData.teamStats.away.shots || 0;
+        }
+      });
+      
+      // Add current period shots if not saved yet
+      homeTotalShots += game.home.shots;
+      if (game.away) {
+        awayTotalShots += game.away.shots;
+      }
+      
+      return `${game.home.name}: ${homeTotalShots} shots${game.away ? ` | ${game.away.name}: ${awayTotalShots} shots` : ''}`;
     } else {
-      const totalShots = game.home.players.reduce((sum, p) => sum + p.shots, 0);
-      return `${game.home.name}: ${totalShots} total shots | ${game.home.players.length} players`;
+      // Calculate total shots across all periods for player mode
+      let totalShots = 0;
+      
+      // Add shots from all periods
+      Object.values(game.periodStats || {}).forEach(periodData => {
+        Object.values(periodData.playerStats).forEach(player => {
+          if (!player.number?.startsWith('away_')) {
+            totalShots += player.shots || 0;
+          }
+        });
+      });
+      
+      // Add current period shots if not saved yet
+      totalShots += game.home.players.reduce((sum, p) => sum + p.shots, 0);
+      
+      // Remove "Home:" prefix for Player Mode as requested
+      return `${totalShots} total shots | ${game.home.players.length} players`;
     }
   };
 

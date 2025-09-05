@@ -107,6 +107,8 @@ export default function GameScreen() {
     const teamData = team === 'home' ? game.home : game.away;
     if (!teamData) return null;
 
+    console.log(`Rendering goalie buttons for ${team} team with ${teamData.goalies.length} goalies`);
+
     return (
       <View style={styles.goalieSection}>
         <Text style={styles.goalieTitle}>Select Goalie:</Text>
@@ -449,8 +451,10 @@ const styles = StyleSheet.create({
   goalieButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
+    width: '100%',
   },
   goalieButtonContainer: {
     alignItems: 'center',
