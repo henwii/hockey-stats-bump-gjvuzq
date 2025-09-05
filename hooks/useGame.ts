@@ -238,57 +238,76 @@ export function useGame() {
       return { ...t, shots: newShots, goalies: updatedGoalies };
     });
 
-  const findPlayerIndex = (t: TeamStats, number: string) => t.players.findIndex((p) => p.number === number);
-
-  const updatePlayer = (
-    team: 'home' | 'away',
-    number: string,
-    updater: (p: PlayerStat) => PlayerStat
-  ) =>
-    applyToTeam(team, (t) => {
-      const idx = findPlayerIndex(t, number);
-      if (idx === -1) return t;
-      const updated = [...t.players];
-      updated[idx] = updater(updated[idx]);
-      return { ...t, players: updated };
-    });
-
   const incrementPlayerStat = (team: 'home' | 'away', number: string, statName: keyof PlayerStat, delta = 1) => {
     const actualDelta = game.shiftMode ? -delta : delta;
     console.log(`Incrementing ${statName} for player ${number} on team ${team} by ${actualDelta}`);
     
-    updatePlayer(team, number, (p) => {
-      const newStat = Math.max(0, (p[statName] as number) + actualDelta);
+    setGame((g) => {
+      const teamData = team === 'home' ? g.home : g.away;
+      if (!teamData) return g;
+      
+      const playerIndex = teamData.players.findIndex(p => p.number === number);
+      if (playerIndex === -1) return g;
+      
+      const updatedPlayers = [...teamData.players];
+      const currentPlayer = updatedPlayers[playerIndex];
+      const newStat = Math.max(0, (currentPlayer[statName] as number) + actualDelta);
+      
+      updatedPlayers[playerIndex] = {
+        ...currentPlayer,
+        [statName]: newStat,
+      };
       
       // If it's a shot, also increment shots against for selected goalie
+      let updatedGoalies = [...teamData.goalies];
       if (statName === 'shots' && actualDelta > 0) {
         console.log(`Shot recorded, updating goalie stats for team ${team}`);
-        setGame((g) => {
-          const teamData = team === 'home' ? g.home : g.away;
-          if (!teamData) return g;
-          
-          const updatedGoalies = [...teamData.goalies];
-          if (teamData.selectedGoalie !== null && updatedGoalies[teamData.selectedGoalie]) {
-            console.log(`Updating shots against for goalie ${teamData.selectedGoalie}: ${updatedGoalies[teamData.selectedGoalie].shotsAgainst} + ${actualDelta}`);
-            updatedGoalies[teamData.selectedGoalie] = {
-              ...updatedGoalies[teamData.selectedGoalie],
-              shotsAgainst: updatedGoalies[teamData.selectedGoalie].shotsAgainst + actualDelta,
-            };
-          }
-          
-          return {
-            ...g,
-            [team]: {
-              ...teamData,
-              goalies: updatedGoalies,
-            }
+        if (teamData.selectedGoalie !== null && updatedGoalies[teamData.selectedGoalie]) {
+          console.log(`Updating shots against for goalie ${teamData.selectedGoalie}: ${updatedGoalies[teamData.selectedGoalie].shotsAgainst} + ${actualDelta}`);
+          updatedGoalies[teamData.selectedGoalie] = {
+            ...updatedGoalies[teamData.selectedGoalie],
+            shotsAgainst: updatedGoalies[teamData.selectedGoalie].shotsAgainst + actualDelta,
           };
-        });
+        }
       }
       
       return {
-        ...p,
-        [statName]: newStat,
+        ...g,
+        [team]: {
+          ...teamData,
+          players: updatedPlayers,
+          goalies: updatedGoalies,
+        }
+      };
+    });
+  };
+
+  // New function to increment stats for multiple players
+  const incrementMultiplePlayerStats = (team: 'home' | 'away', playerNumbers: string[], statName: keyof PlayerStat, delta = 1) => {
+    const actualDelta = game.shiftMode ? -delta : delta;
+    console.log(`Incrementing ${statName} for players ${playerNumbers.join(', ')} on team ${team} by ${actualDelta}`);
+    
+    setGame((g) => {
+      const teamData = team === 'home' ? g.home : g.away;
+      if (!teamData) return g;
+      
+      const updatedPlayers = teamData.players.map(player => {
+        if (playerNumbers.includes(player.number)) {
+          const newStat = Math.max(0, (player[statName] as number) + actualDelta);
+          return {
+            ...player,
+            [statName]: newStat,
+          };
+        }
+        return player;
+      });
+      
+      return {
+        ...g,
+        [team]: {
+          ...teamData,
+          players: updatedPlayers,
+        }
       };
     });
   };
@@ -460,6 +479,7 @@ export function useGame() {
     setTeamNames,
     incrementTeamShots,
     incrementPlayerStat,
+    incrementMultiplePlayerStats,
     setPlayerNumbers,
     setSelectedPlayer,
     toggleShiftMode,

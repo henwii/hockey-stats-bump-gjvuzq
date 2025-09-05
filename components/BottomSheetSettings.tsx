@@ -78,6 +78,7 @@ export default function BottomSheetSettings({
           </View>
         </View>
 
+        {/* Only show team name configuration in Team Mode */}
         {mode === 'team' && (
           <>
             <View style={styles.row}>
@@ -118,7 +119,10 @@ export default function BottomSheetSettings({
             />
           </View>
           <Text style={styles.helperText}>
-            Set the number of goalies (1-5). You can choose which goalie gets shots in the game screen.
+            {mode === 'team' 
+              ? 'Set the number of goalies per team (1-5). You can choose which goalie gets shots in each team card.'
+              : 'Set the number of goalies (1-5). You can choose which goalie gets shots in the game screen.'
+            }
           </Text>
         </View>
 

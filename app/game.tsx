@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import { colors, commonStyles } from '../styles/commonStyles';
 import StatButton from '../components/StatButton';
 import DoughnutChart from '../components/DoughnutChart';
+import PlayerSelectionModal from '../components/PlayerSelectionModal';
 import { useGame } from '../hooks/useGame';
 import Button from '../components/Button';
 import BottomSheetSettings from '../components/BottomSheetSettings';
@@ -20,6 +21,7 @@ export default function GameScreen() {
     setTeamNames,
     incrementTeamShots,
     incrementPlayerStat,
+    incrementMultiplePlayerStats,
     setSelectedPlayer,
     toggleShiftMode,
     setGoalieCount,
@@ -32,6 +34,8 @@ export default function GameScreen() {
 
   const { width } = useWindowDimensions();
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [playerModalVisible, setPlayerModalVisible] = React.useState(false);
+  const [modalStatType, setModalStatType] = React.useState<'plus' | 'minus'>('plus');
 
   React.useEffect(() => {
     console.log('Game loaded', game.id, 'Period:', game.period);
@@ -69,6 +73,16 @@ export default function GameScreen() {
     
     const playerNumber = String(game.selectedPlayer);
     incrementPlayerStat('home', playerNumber, statName as any);
+  };
+
+  const handlePlusMinusPress = (statType: 'plus' | 'minus') => {
+    setModalStatType(statType);
+    setPlayerModalVisible(true);
+  };
+
+  const handlePlayerSelectionSubmit = (selectedPlayers: string[]) => {
+    console.log(`Applying ${modalStatType} to players:`, selectedPlayers);
+    incrementMultiplePlayerStats('home', selectedPlayers, modalStatType);
   };
 
   const totalShotsCurrentPeriod = game.mode === 'players' ? getTotalShotsForPeriod(game.period) : 0;
@@ -151,14 +165,16 @@ export default function GameScreen() {
                 <View style={[styles.teamCard, { borderColor: colors.blue }]}>
                   <Text style={styles.teamName}>{game.home.name}</Text>
                   
-                  {/* Goalie Selection for Home Team */}
-                  {renderGoalieButtons('home')}
-                  
                   <DoughnutChart
                     shots={game.home.shots}
                     label={`${game.home.shots}`}
                     color={colors.blue}
+                    size={60}
                   />
+                  
+                  {/* Goalie Selection for Home Team - Below the counter */}
+                  {renderGoalieButtons('home')}
+                  
                   <View style={{ width: '100%' }}>
                     <StatButton
                       label="+1 Shot"
@@ -178,14 +194,16 @@ export default function GameScreen() {
                 <View style={[styles.teamCard, { borderColor: colors.red }]}>
                   <Text style={styles.teamName}>{game.away.name}</Text>
                   
-                  {/* Goalie Selection for Away Team */}
-                  {renderGoalieButtons('away')}
-                  
                   <DoughnutChart
                     shots={game.away.shots}
                     label={`${game.away.shots}`}
                     color={colors.red}
+                    size={60}
                   />
+                  
+                  {/* Goalie Selection for Away Team - Below the counter */}
+                  {renderGoalieButtons('away')}
+                  
                   <View style={{ width: '100%' }}>
                     <StatButton
                       label="+1 Shot"
@@ -227,7 +245,7 @@ export default function GameScreen() {
                 shots={totalShotsCurrentPeriod}
                 label={`${totalShotsCurrentPeriod}`}
                 color={colors.blue}
-                size={120}
+                size={60}
               />
               
               {/* Goalie Selection for Player Mode */}
@@ -293,7 +311,7 @@ export default function GameScreen() {
                       label="Shot"
                       onPress={() => handlePlayerStatIncrement('shots')}
                       color={colors.blue}
-                      style={styles.eventBtn}
+                      style={styles.shotBtn}
                       textStyle={{ fontSize: 16, fontWeight: 'bold' }}
                     />
                     <StatButton
@@ -312,14 +330,14 @@ export default function GameScreen() {
                     />
                     <StatButton
                       label="Plus"
-                      onPress={() => handlePlayerStatIncrement('plus')}
+                      onPress={() => handlePlusMinusPress('plus')}
                       color={colors.yellow}
                       style={styles.eventBtn}
                       textStyle={{ fontSize: 14 }}
                     />
                     <StatButton
                       label="Minus"
-                      onPress={() => handlePlayerStatIncrement('minus')}
+                      onPress={() => handlePlusMinusPress('minus')}
                       color={colors.red}
                       style={styles.eventBtn}
                       textStyle={{ fontSize: 14 }}
@@ -363,6 +381,14 @@ export default function GameScreen() {
           <Button text="Reset Current Game" onPress={resetCurrentGame} style={{ backgroundColor: colors.softRed }} />
         </View>
       </ScrollView>
+
+      <PlayerSelectionModal
+        visible={playerModalVisible}
+        onClose={() => setPlayerModalVisible(false)}
+        players={game.home.players}
+        onSubmit={handlePlayerSelectionSubmit}
+        title={`Select Players for ${modalStatType === 'plus' ? 'Plus' : 'Minus'}`}
+      />
 
       <BottomSheetSettings
         open={sheetOpen}
@@ -543,6 +569,10 @@ const styles = StyleSheet.create({
   },
   eventBtn: {
     minHeight: 50,
+    width: '100%',
+  },
+  shotBtn: {
+    aspectRatio: 1, // Makes height equal to width
     width: '100%',
   },
   statsTable: {

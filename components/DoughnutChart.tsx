@@ -14,8 +14,8 @@ interface DoughnutChartProps {
 }
 
 export default function DoughnutChart({
-  size = 100,
-  strokeWidth = 12,
+  size = 60, // Reduced default size to half
+  strokeWidth = 8, // Reduced stroke width proportionally
   shots = 0,
   progress = 0,
   label,
@@ -28,6 +28,9 @@ export default function DoughnutChart({
   // Use progress if provided, otherwise calculate from shots (max 100)
   const actualProgress = progress || Math.min(shots / 100, 1);
   const strokeDashoffset = circumference - actualProgress * circumference;
+
+  // Adjust font size based on chart size
+  const fontSize = Math.max(12, size * 0.2);
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -56,7 +59,7 @@ export default function DoughnutChart({
         />
       </Svg>
       <View style={styles.labelContainer}>
-        <Text style={[styles.label, { color }]}>
+        <Text style={[styles.label, { color, fontSize }]}>
           {label || shots.toString()}
         </Text>
       </View>
@@ -79,7 +82,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: 'Fredoka_700Bold',
-    fontSize: 24,
     textAlign: 'center',
   },
 });
