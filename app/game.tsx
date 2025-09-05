@@ -172,7 +172,7 @@ export default function GameScreen() {
                     size={60}
                   />
                   
-                  {/* Goalie Selection for Home Team - Below the counter */}
+                  {/* Goalie Selection for Home Team - Below the counter, in a row */}
                   {renderGoalieButtons('home')}
                   
                   <View style={{ width: '100%' }}>
@@ -201,7 +201,7 @@ export default function GameScreen() {
                     size={60}
                   />
                   
-                  {/* Goalie Selection for Away Team - Below the counter */}
+                  {/* Goalie Selection for Away Team - Below the counter, in a row */}
                   {renderGoalieButtons('away')}
                   
                   <View style={{ width: '100%' }}>
@@ -248,7 +248,7 @@ export default function GameScreen() {
                 size={60}
               />
               
-              {/* Goalie Selection for Player Mode */}
+              {/* Goalie Selection for Player Mode - in a row */}
               {renderGoalieButtons('home')}
             </View>
 

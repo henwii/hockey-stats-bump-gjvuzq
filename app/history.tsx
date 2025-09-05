@@ -1,15 +1,19 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, useWindowDimensions } from 'react-native';
 import Header from '../components/Header';
 import { colors, commonStyles } from '../styles/commonStyles';
 import { Swipeable } from 'react-native-gesture-handler';
-import { Game } from '../types';
+import { Game, PlayerStat } from '../types';
 import { getHistory, deleteGameFromHistory } from '../hooks/useGame';
 import Button from '../components/Button';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HistoryScreen() {
   const [history, setHistory] = React.useState<Game[]>([]);
+  const [selectedGame, setSelectedGame] = React.useState<Game | null>(null);
+  const [modalVisible, setModalVisible] = React.useState(false);
+  const { width } = useWindowDimensions();
 
   React.useEffect(() => {
     loadHistory();
@@ -47,6 +51,107 @@ export default function HistoryScreen() {
     }
   };
 
+  const formatPeriodStats = (game: Game) => {
+    const periods = Object.keys(game.periodStats || {}).map(Number).sort((a, b) => a - b);
+    if (periods.length === 0) return 'No period data available';
+
+    return periods.map(period => {
+      const periodData = game.periodStats[period];
+      if (!periodData) return `Period ${period}: No data`;
+
+      if (game.mode === 'team') {
+        const homeShots = periodData.teamStats.home.shots || 0;
+        const awayShots = periodData.teamStats.away?.shots || 0;
+        return `P${period}: ${homeShots}${game.away ? ` - ${awayShots}` : ''} shots`;
+      } else {
+        const totalShots = Object.values(periodData.playerStats)
+          .filter(player => !player.number?.startsWith('away_'))
+          .reduce((sum, player) => sum + (player.shots || 0), 0);
+        return `P${period}: ${totalShots} shots`;
+      }
+    }).join(' | ');
+  };
+
+  const handleGamePress = (game: Game) => {
+    if (game.mode === 'players') {
+      setSelectedGame(game);
+      setModalVisible(true);
+    }
+  };
+
+  const renderPlayerStatsModal = () => {
+    if (!selectedGame) return null;
+
+    const periods = Object.keys(selectedGame.periodStats || {}).map(Number).sort((a, b) => a - b);
+
+    return (
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { width: width * 0.95, maxWidth: 600 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Player Statistics</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              {selectedGame.home.name} - {new Date(selectedGame.date).toLocaleDateString()}
+            </Text>
+
+            <ScrollView style={styles.modalScrollView}>
+              {periods.map(period => {
+                const periodData = selectedGame.periodStats[period];
+                if (!periodData) return null;
+
+                const players = Object.values(periodData.playerStats)
+                  .filter(player => !player.number?.startsWith('away_'))
+                  .sort((a, b) => parseInt(a.number) - parseInt(b.number));
+
+                return (
+                  <View key={period} style={styles.periodSection}>
+                    <Text style={styles.periodTitle}>Period {period}</Text>
+                    <View style={styles.statsTable}>
+                      <View style={styles.statsHeaderRow}>
+                        <Text style={styles.statsHeaderCell}>#</Text>
+                        <Text style={styles.statsHeaderCell}>Shots</Text>
+                        <Text style={styles.statsHeaderCell}>FO+</Text>
+                        <Text style={styles.statsHeaderCell}>FO-</Text>
+                        <Text style={styles.statsHeaderCell}>+</Text>
+                        <Text style={styles.statsHeaderCell}>-</Text>
+                      </View>
+                      {players.map(player => (
+                        <View key={player.number} style={styles.statsDataRow}>
+                          <Text style={styles.statsDataCell}>{player.number}</Text>
+                          <Text style={styles.statsDataCell}>{player.shots}</Text>
+                          <Text style={styles.statsDataCell}>{player.faceOffWins}</Text>
+                          <Text style={styles.statsDataCell}>{player.faceOffLosses}</Text>
+                          <Text style={styles.statsDataCell}>{player.plus}</Text>
+                          <Text style={styles.statsDataCell}>{player.minus}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <Button
+              text="Close"
+              onPress={() => setModalVisible(false)}
+              style={styles.modalCloseButton}
+            />
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <View style={commonStyles.container}>
       <Header title="Game History" canGoBack />
@@ -63,14 +168,23 @@ export default function HistoryScreen() {
               key={game.id}
               renderRightActions={() => renderRightActions(game.id)}
             >
-              <View style={styles.gameCard}>
+              <TouchableOpacity
+                style={styles.gameCard}
+                onPress={() => handleGamePress(game)}
+                activeOpacity={game.mode === 'players' ? 0.7 : 1}
+              >
                 <View style={styles.gameHeader}>
                   <Text style={styles.gameDate}>
                     {new Date(game.date).toLocaleDateString()}
                   </Text>
-                  <Text style={styles.gameMode}>
-                    {game.mode === 'team' ? 'Team Mode' : 'Player Mode'}
-                  </Text>
+                  <View style={styles.gameModeContainer}>
+                    <Text style={styles.gameMode}>
+                      {game.mode === 'team' ? 'Team Mode' : 'Player Mode'}
+                    </Text>
+                    {game.mode === 'players' && (
+                      <Ionicons name="chevron-forward" size={16} color={colors.white} />
+                    )}
+                  </View>
                 </View>
                 <Text style={styles.gameStats}>
                   {formatGameStats(game)}
@@ -78,10 +192,14 @@ export default function HistoryScreen() {
                 <Text style={styles.gamePeriods}>
                   Periods played: {game.period}
                 </Text>
-              </View>
+                <Text style={styles.periodStats}>
+                  {formatPeriodStats(game)}
+                </Text>
+              </TouchableOpacity>
             </Swipeable>
           ))
         )}
+        {renderPlayerStatsModal()}
       </ScrollView>
     </View>
   );
@@ -114,6 +232,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.outline,
     boxShadow: '0px 6px 0px ' + colors.outline,
+    width: '100%', // Full width as requested
   },
   gameHeader: {
     flexDirection: 'row',
@@ -126,15 +245,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  gameMode: {
-    fontFamily: 'Fredoka_500Medium',
-    fontSize: 14,
-    color: colors.muted,
+  gameModeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primaryBlue,
-    color: colors.white,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    gap: 4,
+  },
+  gameMode: {
+    fontFamily: 'Fredoka_500Medium',
+    fontSize: 14,
+    color: colors.white,
   },
   gameStats: {
     fontFamily: 'Fredoka_500Medium',
@@ -146,6 +269,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Fredoka_400Regular',
     fontSize: 12,
     color: colors.muted,
+    marginBottom: 4,
+  },
+  periodStats: {
+    fontFamily: 'Fredoka_400Regular',
+    fontSize: 12,
+    color: colors.blue,
+    fontStyle: 'italic',
   },
   deleteAction: {
     backgroundColor: colors.red,
@@ -160,5 +290,88 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: colors.backdrop,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 20,
+    maxHeight: '90%',
+    borderWidth: 3,
+    borderColor: colors.outline,
+    boxShadow: '0px 8px 0px ' + colors.outline,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontFamily: 'Fredoka_700Bold',
+    fontSize: 20,
+    color: colors.text,
+  },
+  modalSubtitle: {
+    fontFamily: 'Fredoka_500Medium',
+    fontSize: 16,
+    color: colors.muted,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalScrollView: {
+    maxHeight: 400,
+  },
+  periodSection: {
+    marginBottom: 20,
+  },
+  periodTitle: {
+    fontFamily: 'Fredoka_700Bold',
+    fontSize: 18,
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  statsTable: {
+    borderWidth: 2,
+    borderColor: colors.outline,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  statsHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.primaryBlue,
+    paddingVertical: 8,
+  },
+  statsHeaderCell: {
+    flex: 1,
+    color: colors.white,
+    fontFamily: 'Fredoka_700Bold',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  statsDataRow: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outline,
+    backgroundColor: colors.card,
+  },
+  statsDataCell: {
+    flex: 1,
+    fontFamily: 'Fredoka_500Medium',
+    fontSize: 14,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  modalCloseButton: {
+    backgroundColor: colors.red,
+    marginTop: 16,
   },
 });
